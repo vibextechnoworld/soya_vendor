@@ -1,0 +1,72 @@
+name: soya_app
+description: "A new Flutter project."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.4 <4.0.0'
+
+dependencies:
+  http: ^1.2.0
+  http_parser: ^4.0.2
+  connectivity_plus: ^6.1.0
+  firebase_core: ^4.3.0
+  flutter:
+    sdk: flutter
+  fl_chart: ^0.70.2
+  flutter_launcher_icons: ^0.14.4
+  flutter_screenutil: ^5.9.3
+  provider: ^6.1.5+1
+  rename_app: ^1.6.5
+  shared_preferences: ^2.3.3
+  shimmer: ^3.0.0
+  image_picker: ^1.0.4
+  file_picker: ^8.1.6
+  dotted_border: ^2.1.0
+  dropdown_search: 5.0.6
+  pdf: ^3.11.3
+  printing: ^5.13.0
+  path_provider: ^2.1.5
+  share_plus: 10.1.0
+  open_file: ^3.5.11
+  permission_handler: ^11.3.1
+  intl: ^0.20.2
+  font_awesome_flutter: 10.7.0
+  url_launcher: ^6.3.1
+  geolocator: ^13.0.1
+  geocoding: ^3.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^4.0.0
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  web:
+    generate: true
+    image_path: "assets/playstore_icon.png"
+    background_color: "#ffffff"
+    theme_color: "#000000"
+  windows:
+    generate: true
+    image_path: "assets/playstore_icon.png"
+    icon_size: 256
+  macos:
+    generate: true
+    image_path: "assets/playstore_icon.png"
+  linux:
+    generate: true
+    image_path: "assets/playstore_icon.png"
+  android_adaptive_icon_background: "#ffffff"
+  android_adaptive_icon_foreground: "#ff0000"
+  image_path: "assets/playstore_icon.png"
+  color: "#000000"
+  ios_icon_image_path: "assets/playstore_icon.png"
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/
+
