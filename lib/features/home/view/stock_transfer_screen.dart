@@ -150,23 +150,8 @@ class _StockTransferScreenState extends State<StockTransferScreen>
 
     String? resolvedDestLocationId;
     if (_selectedTransferType!.endsWith('_TO_VENDOR')) {
-      final activeLocations = controller.inventoryLocations
-          .where((e) => e.isActive == true)
-          .toList();
-      final selectedVendor = controller.vendors
-          .firstWhere((v) => v.id == _selectedDestinationVendorId);
-      final destLoc = activeLocations.firstWhere(
-          (loc) =>
-              loc.type == 'VENDOR' &&
-              (loc.vendorId == _selectedDestinationVendorId ||
-                  loc.name
-                      .toLowerCase()
-                      .contains(selectedVendor.name?.toLowerCase() ?? '---')),
-          orElse: () => activeLocations.firstWhere(
-              (loc) => loc.type == 'VENDOR',
-              orElse: () => activeLocations.first));
-      resolvedDestLocationId = destLoc.id;
-    } else {
+  resolvedDestLocationId = _selectedDestinationLocationId;
+} else {
       resolvedDestLocationId = _selectedDestinationLocationId;
     }
 

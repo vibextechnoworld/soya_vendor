@@ -1412,7 +1412,7 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                         icon: Icons.print_rounded,
                         color: Colors.blueGrey,
                         title: "Print Bill",
-                        subtitle: "Print directly to printer",
+                        subtitle: "Choose A4 or 58mm thermal",
                         onTap: () async {
                           setState(() => isGenerating = true);
                           await _printPdf(context, controller);
@@ -1542,7 +1542,10 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
       final bill = controller.selectedBillDetails;
       if (bill == null) return;
 
-      final pdfData = await PdfInvoiceService.generateInvoice(bill);
+      final pdfData = await PdfInvoiceService.generateInvoice(
+        bill,
+        deductions: controller.previewDeductions,
+      );
 
       // Filename format: [FarmerName]_[BillNo].pdf
       final farmerName = (bill.farmer?.name ?? '')
@@ -1631,10 +1634,18 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
       final bill = controller.selectedBillDetails;
       if (bill == null) return;
 
-      final pdfData = await PdfInvoiceService.generateInvoice(bill);
+      final printFormat = await _showPrintFormatSheet(context);
+      if (printFormat == null) return;
+
+      final pdfData = await PdfInvoiceService.generateInvoice(
+        bill,
+        format: printFormat,
+        deductions: controller.previewDeductions,
+      );
       await Printing.layoutPdf(
         onLayout: (PdfPageFormat format) async => pdfData,
-        name: 'Bill_${bill.billNo ?? 'N/A'}',
+        name:
+            'Bill_${bill.billNo ?? 'N/A'}_${printFormat == BillPrintFormat.thermal58 ? '58mm' : 'A4'}',
       );
     } catch (e) {
       debugPrint("Error printing PDF: $e");
@@ -1648,6 +1659,52 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
     }
   }
 
+  Future<BillPrintFormat?> _showPrintFormatSheet(BuildContext context) {
+    return showModalBottomSheet<BillPrintFormat>(
+      context: context,
+      backgroundColor: whiteColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18.r)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(18.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Select Print Format",
+                  style: TextStyle(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: FontFamily.jost,
+                    color: blackColor,
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                ListTile(
+                  leading: const Icon(Icons.description_outlined),
+                  title: const Text("A4 Farmer Purchase Receipt"),
+                  subtitle: const Text("Full-size PDF layout"),
+                  onTap: () => Navigator.pop(context, BillPrintFormat.a4),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.receipt_long_outlined),
+                  title: const Text("58mm Thermal Receipt"),
+                  subtitle: const Text("Compact bill printer layout"),
+                  onTap: () =>
+                      Navigator.pop(context, BillPrintFormat.thermal58),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+
   Future<void> _generateAndDownloadPdf(
     BuildContext context,
     BillingController controller,
@@ -1656,7 +1713,10 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
       final bill = controller.selectedBillDetails;
       if (bill == null) return;
 
-      final pdfData = await PdfInvoiceService.generateInvoice(bill);
+      final pdfData = await PdfInvoiceService.generateInvoice(
+        bill,
+        deductions: controller.previewDeductions,
+      );
       // Filename format: [FarmerName]_[BillNo].pdf
       final farmerName = (bill.farmer?.name ?? '')
           .trim()

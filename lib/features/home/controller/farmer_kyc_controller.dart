@@ -55,7 +55,7 @@ class FarmerKycController with ChangeNotifier {
   bool get isMyFarmersOnly => _isMyFarmersOnly;
 
   String? _vendorId;
-  FarmerSearchType _searchType = FarmerSearchType.name;
+  FarmerSearchType _searchType = FarmerSearchType.aadhaar;
   FarmerSearchType get searchType => _searchType;
 
   void setSearchType(FarmerSearchType type) {

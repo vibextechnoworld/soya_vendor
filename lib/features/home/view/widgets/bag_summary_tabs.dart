@@ -182,7 +182,7 @@ class _BagSummaryContentViewState extends State<BagSummaryContentView>
             children: [
               Expanded(
                 child: _buildSummaryBox(
-                  'Current\nAvailable',
+                  'Available\nBags',
                   '${totals.currentWithVendor ?? 0}',
                   Colors.green,
                   Icons.inventory_2_outlined,
@@ -195,7 +195,7 @@ class _BagSummaryContentViewState extends State<BagSummaryContentView>
             children: [
               Expanded(
                 child: _buildSummaryBox(
-                  'From\nFarmers',
+                  'Received\nFrom Farmers',
                   '${totals.receivedFromFarmers ?? 0}',
                   primeryColor,
                   Icons.groups_outlined,
@@ -204,7 +204,7 @@ class _BagSummaryContentViewState extends State<BagSummaryContentView>
               SizedBox(width: 8.w),
               Expanded(
                 child: _buildSummaryBox(
-                  'From\nAdmin',
+                  'Received\nFrom Admin',
                   '${totals.receivedFromAdmin ?? 0}',
                   Colors.purple,
                   Icons.admin_panel_settings_outlined,
@@ -226,7 +226,7 @@ class _BagSummaryContentViewState extends State<BagSummaryContentView>
             children: [
               Expanded(
                 child: _buildSummaryBox(
-                  'Admin\nAdded',
+                  'Bags\n by Admin',
                   '${totals.receivedAdminAdd ?? 0}',
                   Colors.teal,
                   Icons.add_moderator_outlined,
@@ -235,7 +235,7 @@ class _BagSummaryContentViewState extends State<BagSummaryContentView>
               SizedBox(width: 8.w),
               Expanded(
                 child: _buildSummaryBox(
-                  'Sent to\nAdmin',
+                  'Bags Sent\nto Admin',
                   '${totals.sentToAdmin ?? 0}',
                   Colors.orange,
                   Icons.local_shipping_outlined,
@@ -244,7 +244,7 @@ class _BagSummaryContentViewState extends State<BagSummaryContentView>
               SizedBox(width: 8.w),
               Expanded(
                 child: _buildSummaryBox(
-                  'Returned to\nFarmers',
+                  'Bags Returned\nto Farmers',
                   '${totals.returnedToFarmers ?? 0}',
                   Colors.red,
                   Icons.assignment_return_outlined,

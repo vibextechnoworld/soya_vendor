@@ -1421,11 +1421,12 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                                   Row(
                                     children: [
                                       _buildSearchTypeRadioButton(controller,
-                                          FarmerSearchType.name, 'Name'),
-                                      SizedBox(width: 12.w),
-                                      _buildSearchTypeRadioButton(controller,
                                           FarmerSearchType.aadhaar, 'Aadhaar'),
                                       SizedBox(width: 12.w),
+                                      _buildSearchTypeRadioButton(controller,
+                                          FarmerSearchType.name, 'Name'),
+                                      SizedBox(width: 12.w),
+                                      
                                       _buildSearchTypeRadioButton(controller,
                                           FarmerSearchType.phone, 'Phone'),
                                     ],
