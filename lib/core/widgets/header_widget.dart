@@ -30,35 +30,35 @@ class HeaderWidget extends StatelessWidget {
             ],
           ),
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Row(
-                children: [
-                  _buildProfileImage(controller.userName),
-                  SizedBox(width: 12.w),
-                  Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Welcome,',
-                        style: TextStyle(
-                          fontSize: 12.sp,
-                          color: greyColor,
-                          fontFamily: FontFamily.jost,
-                        ),
+              _buildProfileImage(controller.userName),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      'Welcome,',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        color: greyColor,
+                        fontFamily: FontFamily.jost,
                       ),
-                      Text(
-                        controller.userName ?? 'Vendor Name',
-                        style: TextStyle(
-                          fontSize: 16.sp,
-                          fontWeight: FontWeight.w600,
-                          color: blackColor,
-                          fontFamily: FontFamily.jost,
-                        ),
+                    ),
+                    Text(
+                      controller.userName ?? 'Vendor Name',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontWeight: FontWeight.w900,
+                        color: blackColor,
+                        fontFamily: FontFamily.jost,
                       ),
-                    ],
-                  ),
-                ],
+                    ),
+                  ],
+                ),
               ),
               PopupMenuButton<String>(
                 icon: Icon(Icons.menu, color: blackColor, size: 24.sp),
@@ -106,8 +106,8 @@ class HeaderWidget extends StatelessWidget {
                   }
                 },
                 itemBuilder: (context) => [
-                  _buildMenuItem(
-                      'opening_bag', Icons.shopping_bag_outlined, 'Add Opening Bag'),
+                  _buildMenuItem('opening_bag', Icons.shopping_bag_outlined,
+                      'Add Opening Bag'),
                   _buildMenuItem(
                       'kyc', Icons.person_add_alt_1_outlined, 'Farmer KYC'),
                   _buildMenuItem(

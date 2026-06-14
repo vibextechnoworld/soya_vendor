@@ -1,11 +1,15 @@
 import 'dart:io';
 import 'dart:typed_data';
+import 'dart:convert';
+import 'package:flutter/foundation.dart';
 
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
+import 'package:soya_app/core/constants/api_constants.dart';
+import 'package:soya_app/core/services/api_service.dart';
 import 'package:soya_app/features/home/model/bill_model.dart';
 
 enum BillPrintFormat { a4, thermal58 }
@@ -18,24 +22,51 @@ class PdfInvoiceService {
   static const String _helpline = '+91 9763087275';
   static const String _vendorPhone = '+91 98XXXXXXX';
 
+  static Future<String?> _fetchDisclaimer() async {
+    try {
+      final response = await ApiService.instance.get(ApiConstants.disclaimer);
+      if (response.statusCode == 200) {
+        final decoded = jsonDecode(response.body);
+        if (decoded['success'] == true && decoded['data'] != null) {
+          final dynamic rawData = decoded['data'];
+          if (rawData is Map<String, dynamic>) {
+            return rawData['text']?.toString();
+          } else if (rawData is String) {
+            return rawData;
+          }
+        } else if (decoded['text'] != null) {
+          return decoded['text']?.toString();
+        } else if (decoded['data'] != null && decoded['data'] is String) {
+          return decoded['data']?.toString();
+        }
+      }
+    } catch (e) {
+      debugPrint('Error fetching disclaimer: $e');
+    }
+    return null;
+  }
+
   static Future<Uint8List> generateInvoice(
     BillModel bill, {
     BillPrintFormat format = BillPrintFormat.a4,
     List<BillDeduction>? deductions,
   }) async {
+    final disclaimer = await _fetchDisclaimer();
     if (format == BillPrintFormat.thermal58) {
-      return generateThermal58Invoice(bill, deductions: deductions);
+      return generateThermal58Invoice(bill, deductions: deductions, customDisclaimer: disclaimer);
     }
-    return generateA4Invoice(bill, deductions: deductions);
+    return generateA4Invoice(bill, deductions: deductions, customDisclaimer: disclaimer);
   }
 
   static Future<Uint8List> generateA4Invoice(
     BillModel bill, {
     List<BillDeduction>? deductions,
+    String? customDisclaimer,
   }) async {
     final ttf = await PdfGoogleFonts.jostRegular();
     final ttfBold = await PdfGoogleFonts.jostBold();
     final data = _BillPrintData.fromBill(bill, deductions: deductions);
+    final disclaimerText = customDisclaimer ?? await _fetchDisclaimer();
 
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
@@ -241,7 +272,7 @@ class PdfInvoiceService {
                   ),
                 ),
                 pw.SizedBox(height: 4),
-                _declarationSection(ttf, ttfBold, data),
+                _declarationSection(ttf, ttfBold, data, customDisclaimer: disclaimerText),
                 pw.SizedBox(height: 4),
                 _footerBand(ttf, ttfBold, data),
                 pw.SizedBox(height: 3),
@@ -259,10 +290,12 @@ class PdfInvoiceService {
   static Future<Uint8List> generateThermal58Invoice(
     BillModel bill, {
     List<BillDeduction>? deductions,
+    String? customDisclaimer,
   }) async {
     final ttf = await PdfGoogleFonts.robotoMonoRegular();
     final ttfBold = await PdfGoogleFonts.robotoMonoBold();
     final data = _BillPrintData.fromBill(bill, deductions: deductions);
+    final disclaimerText = customDisclaimer ?? await _fetchDisclaimer();
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
     );
@@ -335,7 +368,9 @@ class PdfInvoiceService {
                 _thermalLine(),
                 _thermalCenter(ttfBold, 'DECLARATION'),
                 pw.Text(
-                  'I confirm that the supplied crop belongs to me and payment details mentioned above are accepted by me.',
+                  (disclaimerText != null && disclaimerText.trim().isNotEmpty)
+                      ? 'I, ${data.farmerName}, ${disclaimerText.trim()}'
+                      : 'I confirm that the supplied crop belongs to me and payment details mentioned above are accepted by me.',
                   textAlign: pw.TextAlign.left,
                 ),
                 pw.SizedBox(height: 10),
@@ -700,7 +735,11 @@ class PdfInvoiceService {
   }
 
   static pw.Widget _declarationSection(
-      pw.Font ttf, pw.Font ttfBold, _BillPrintData data) {
+      pw.Font ttf, pw.Font ttfBold, _BillPrintData data, {String? customDisclaimer}) {
+    final String declarationText = (customDisclaimer != null && customDisclaimer.trim().isNotEmpty)
+        ? 'I, ${data.farmerName}, ${customDisclaimer.trim()}'
+        : 'I, ${data.farmerName}, confirm that the supplied crop belongs to me and the payment details mentioned above are accepted by me.';
+
     return _boxedSection(
       title: 'DECLARATION',
       icon: 'DOC',
@@ -710,7 +749,7 @@ class PdfInvoiceService {
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
           pw.Text(
-            'I, ${data.farmerName}, confirm that the supplied crop belongs to me and the payment details mentioned above are accepted by me.',
+            declarationText,
             style: pw.TextStyle(font: ttf, fontSize: 8),
           ),
           pw.SizedBox(height: 4),

@@ -6,7 +6,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
 import 'package:path_provider/path_provider.dart';
-import 'package:path/path.dart' as p;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soya_app/core/services/image_picker_service.dart';
 import 'package:soya_app/features/bottom_navigation_bar/controller/bottom_navbar_controller.dart';
@@ -116,6 +115,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     _controller = Provider.of<FarmerKycController>(context, listen: false);
     _setupControllerListener();
     _setupExistingCheckListeners();
+    _areaController.addListener(_onAreaChanged);
+    _bloodRelationAreaController.addListener(_onAreaChanged);
     _landLocationProvider.loadData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<LocationProvider>(context, listen: false).loadData();
@@ -297,8 +298,13 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
               .firstOrNull;
           if (bloodLand != null) {
             if (_bloodRelationAreaController.text.isEmpty) {
-              _bloodRelationAreaController.text =
-                  bloodLand.area?.toString() ?? '';
+              if (bloodLand.area != null) {
+                final bloodHectareVal = _acreToHectare(bloodLand.area!);
+                _bloodRelationAreaController.text =
+                    bloodHectareVal > 0 ? bloodHectareVal.toStringAsFixed(2) : '';
+              } else {
+                _bloodRelationAreaController.text = '';
+              }
             }
             if (_bloodRelationOwnerNameController.text.isEmpty) {
               _bloodRelationOwnerNameController.text =
@@ -332,10 +338,42 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     }
   }
 
+  double _hectareToAcre(double hectare) {
+    return hectare * 2.47105;
+  }
+
+  double _acreToHectare(double acre) {
+    return acre / 2.47105;
+  }
+
+  String _convertInputHectareToAcreStr(String input) {
+    final hectare = double.tryParse(input.trim()) ?? 0.0;
+    if (hectare <= 0) return '';
+    return _hectareToAcre(hectare).toStringAsFixed(4);
+  }
+
+  String _getAcreEquivalent(String hectareStr) {
+    final hectare = double.tryParse(hectareStr.trim()) ?? 0.0;
+    if (hectare <= 0) return '';
+    final acre = _hectareToAcre(hectare);
+    return 'Equivalent: ${acre.toStringAsFixed(2)} Acres';
+  }
+
+  void _onAreaChanged() {
+    if (mounted) {
+      setState(() {});
+    }
+  }
+
   void _fillLandData(LandData land) {
     setState(() {
       _landTypeController.text = land.landType ?? 'OWN';
-      _areaController.text = land.area?.toString() ?? '';
+      if (land.area != null) {
+        final hectareVal = _acreToHectare(land.area!);
+        _areaController.text = hectareVal > 0 ? hectareVal.toStringAsFixed(2) : '';
+      } else {
+        _areaController.text = '';
+      }
       _landOwnerNameController.text = land.landOwnerName ?? '';
       _landRelationTypeController.text = land.relationType ?? '';
       _landVillageController.text = land.villageAdd ?? '';
@@ -394,6 +432,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   @override
   void dispose() {
     _controller.removeListener(_onControllerUpdate);
+    _areaController.removeListener(_onAreaChanged);
+    _bloodRelationAreaController.removeListener(_onAreaChanged);
     _firstNameController.dispose();
     _middleNameController.dispose();
     _lastNameController.dispose();
@@ -471,11 +511,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   Future<File?> _saveFilePermanently(File sourceFile, String prefix) async {
     try {
       final directory = await getApplicationDocumentsDirectory();
-      final name = p.basename(sourceFile.path);
+      final name = sourceFile.path.split('/').last.split('\\').last;
       // Add timestamp to ensure uniqueness and avoid collision if same file name exists
       final timestamp = DateTime.now().millisecondsSinceEpoch;
       final permanentPath =
-          p.join(directory.path, '${prefix}_${timestamp}_$name');
+          '${directory.path}/${prefix}_${timestamp}_$name';
       return await sourceFile.copy(permanentPath);
     } catch (e) {
       debugPrint('Error saving file permanently: $e');
@@ -620,29 +660,19 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       }
     } else if (currentStep == 2) {
       // Step 3: Land Details
+      // Keep Land Details optional during initial Farmer KYC submission
+      if (!_hasAnyLandData()) {
+        // Skip validation and API calls, directly proceed to the next step
+        controller.nextStep();
+        return;
+      }
+
       if (!_landFormKey.currentState!.validate()) return;
 
       final farmerId = controller.createdFarmerId!;
       final landType = _landTypeController.text.trim();
 
-      // Flags to track partial completion during this session
-      // Note: Ideally these should be part of the state to persist across transient re-renders,
-      // but assuming the user stays on the screen during retry, we can use checks.
-      // Better approach: Check if we have already successfully uploaded by checking controller state or local flags.
-      // Since we don't have explicit "PrimaryLandId" in controller for this session easily accessible without refetch,
-      // we will use a more robust flow:
-      // 1. Upload Primary if not already flagged as done (we can assume if user is clicking next, they want to save).
-      // But to prevent duplicates, we really should track it.
-      // Let's rely on the `success` result. If it fails, we stop.
-
       bool primarySuccess = false;
-
-      // Check if we need to upload Primary Land
-      // If we are strictly "creating" new entries, we risk duplicates if we retry.
-      // However, the API `createFarmerLands` creates a new entry.
-      // If `_landDocument` is null and `_landDocumentUrl` is accessible, it means it's already there (VIEW/UPDATE mode).
-      // If it is 'UPDATE' mode (`controller.isLandSubmitted` is true), we use `updateFarmerLand`?
-      // Wait, the previous logic had strict checks.
 
       if (landType == 'LAND_712') {
         if (_landDocument == null && _landDocumentUrl == null) {
@@ -660,12 +690,20 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             farmerId: farmerId,
             type: 'LAND_712',
             document: _landDocument!,
-            area: _areaController.text.trim(),
+            area: _convertInputHectareToAcreStr(_areaController.text),
             isUpdate: controller.isLandSubmitted,
           );
         } else {
-          // Already has document
-          primarySuccess = true;
+          // No new document selected, but we have text edits, so update text fields
+          primarySuccess = await controller.updateFarmerLand(
+            context: context,
+            farmerId: farmerId,
+            landType: landType,
+            villageAdd: _landVillageController.text.trim(),
+            taluka: _landTalukaController.text.trim(),
+            district: _landDistrictController.text.trim(),
+            area: _convertInputHectareToAcreStr(_areaController.text),
+          );
         }
       } else {
         // OWN or other types handled by LandController
@@ -688,13 +726,24 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             taluka: _landTalukaController.text.trim(),
             district: _landDistrictController.text.trim(),
             landType: landType,
-            area: _areaController.text.trim(),
+            area: _convertInputHectareToAcreStr(_areaController.text),
             landOwnerName: landType == 'BLOOD_RELATION' ? _landOwnerNameController.text.trim() : null,
             relationType: landType == 'BLOOD_RELATION' ? _landRelationTypeController.text.trim().toUpperCase() : null,
             landImage: _landDocument!,
           );
         } else {
-          primarySuccess = true;
+          // No new image selected, but we have text edits, so update text fields
+          primarySuccess = await controller.updateFarmerLand(
+            context: context,
+            farmerId: farmerId,
+            landType: landType,
+            villageAdd: _landVillageController.text.trim(),
+            taluka: _landTalukaController.text.trim(),
+            district: _landDistrictController.text.trim(),
+            area: _convertInputHectareToAcreStr(_areaController.text),
+            landOwnerName: landType == 'BLOOD_RELATION' ? _landOwnerNameController.text.trim() : null,
+            relationType: landType == 'BLOOD_RELATION' ? _landRelationTypeController.text.trim().toUpperCase() : null,
+          );
         }
       }
 
@@ -716,7 +765,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             taluka: _landTalukaController.text.trim(),
             district: _landDistrictController.text.trim(),
             landType: 'BLOOD_RELATION',
-            area: _bloodRelationAreaController.text.trim(),
+            area: _convertInputHectareToAcreStr(_bloodRelationAreaController.text),
             landOwnerName: _bloodRelationOwnerNameController.text.trim(),
             relationType: _bloodRelationRelationTypeController.text.trim().toUpperCase(),
             landImage: _bloodRelationLandDocument!,
@@ -1173,6 +1222,17 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       return controller.isBankSubmitted ? 'Update & Submit' : 'Submit';
     }
     return 'Next';
+  }
+
+  bool _hasAnyLandData() {
+    return _areaController.text.trim().isNotEmpty ||
+        _landDocument != null ||
+        _landDocumentUrl != null ||
+        _bloodRelationAreaController.text.trim().isNotEmpty ||
+        _bloodRelationLandDocument != null ||
+        _bloodRelationLandDocumentUrl != null ||
+        _landOwnerNameController.text.trim().isNotEmpty ||
+        _landRelationTypeController.text.trim().isNotEmpty;
   }
 
   void _resetForm() {
@@ -2542,7 +2602,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
               ),
             ],
             SizedBox(height: 12.h),
-            _buildFieldLabel('Area (in acres) *'),
+            _buildFieldLabel('Area (in Hectares) *'),
             _buildTextField(
               controller: _areaController,
               keyboardType:
@@ -2558,6 +2618,18 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                 return null;
               },
             ),
+            if (_areaController.text.trim().isNotEmpty) ...[
+              SizedBox(height: 4.h),
+              Text(
+                _getAcreEquivalent(_areaController.text),
+                style: TextStyle(
+                  fontSize: 12.sp,
+                  color: primeryColor,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: FontFamily.jost,
+                ),
+              ),
+            ],
             SizedBox(height: 10.h),
             _buildFieldLabel('Land Document Photo *'),
             _buildImageUpload(
@@ -2668,12 +2740,24 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                 },
               ),
               SizedBox(height: 12.h),
-              _buildFieldLabel('Area (in acres)'),
+              _buildFieldLabel('Area (in Hectares)'),
               _buildTextField(
                 controller: _bloodRelationAreaController,
                 keyboardType:
                     const TextInputType.numberWithOptions(decimal: true),
               ),
+              if (_bloodRelationAreaController.text.trim().isNotEmpty) ...[
+                SizedBox(height: 4.h),
+                Text(
+                  _getAcreEquivalent(_bloodRelationAreaController.text),
+                  style: TextStyle(
+                    fontSize: 12.sp,
+                    color: primeryColor,
+                    fontWeight: FontWeight.w500,
+                    fontFamily: FontFamily.jost,
+                  ),
+                ),
+              ],
               SizedBox(height: 10.h),
               _buildImageUpload(
                 onTap: () => _pickImage('BLOOD_RELATION_LAND'),
@@ -3052,8 +3136,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   }
 
   bool _isImageFile(String path) {
-    final mimeType = p.extension(path).toLowerCase();
-    return ['.jpg', '.jpeg', '.png', '.bmp'].contains(mimeType);
+    final extension = path.contains('.') ? path.split('.').last.toLowerCase() : '';
+    return ['jpg', 'jpeg', 'png', 'bmp'].contains(extension);
   }
 
   Widget _buildImageUpload({
@@ -3106,8 +3190,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(
-                            p.extension(selectedFile.path).toLowerCase() ==
-                                    '.pdf'
+                            selectedFile.path.split('.').last.toLowerCase() ==
+                                    'pdf'
                                 ? Icons.picture_as_pdf_rounded
                                 : Icons.insert_drive_file_rounded,
                             color: Colors.red.shade400,
@@ -3115,7 +3199,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                           ),
                           SizedBox(height: 4.h),
                           Text(
-                            p.basename(selectedFile.path),
+                            selectedFile.path.split('/').last.split('\\').last,
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(

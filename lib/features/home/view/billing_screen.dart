@@ -456,7 +456,8 @@ class _BillingScreenState extends State<BillingScreen> {
                                 );
                                 if (pickedDate != null) {
                                   controller.setSelectedBillingDate(pickedDate);
-                                  await controller.fetchRatesByDate(pickedDate, context: context);
+                                  await controller.fetchRatesByDate(pickedDate,
+                                      context: context);
                                 }
                               },
                               child: Container(
@@ -1592,8 +1593,9 @@ class _BillingScreenState extends State<BillingScreen> {
   }
 
   Widget _buildSingleVariationDropdown(BillingController controller) {
-    final formulaMasters =
-        controller.deductionMasters.where((m) => m.type == "FORMULA").toList();
+    final formulaMasters = controller.deductionMasters
+        .where((m) => m.type == "FORMULA" && m.isActive == true)
+        .toList();
     if (formulaMasters.isEmpty) return const SizedBox.shrink();
 
     // Create a list of all variations with their masters
@@ -1730,12 +1732,12 @@ class _BillingScreenState extends State<BillingScreen> {
                               fontSize: 13.sp,
                               color: primeryColor)),
                     )),
-                Expanded(
-                    flex: 2,
-                    child: Text("Deduction",
-                        textAlign: TextAlign.center,
-                        style: TextStyle(
-                            fontWeight: FontWeight.bold, fontSize: 13.sp))),
+                // Expanded(
+                //     flex: 2,
+                //     child: Text("Deduction",
+                //         textAlign: TextAlign.center,
+                //         style: TextStyle(
+                //             fontWeight: FontWeight.bold, fontSize: 13.sp))),
               ],
             ),
           ),
@@ -1796,19 +1798,19 @@ class _BillingScreenState extends State<BillingScreen> {
 
   Widget _buildTotalDeductionRow(
       BillingController controller, DeductionMaster master) {
-    double totalDeductionVal = 0.0;
-    if (master.variables != null) {
-      for (var variable in master.variables!) {
-        final code = variable.code!;
-        final rowController = _qualityControllers[code];
-        if (rowController != null) {
-          final allowed = controller.allowedValueByCode(code, master: master);
-          final actual = double.tryParse(rowController.text) ?? 0.0;
-          totalDeductionVal +=
-              _calculateDeductionLocal(actual, allowed, variable.unitHint);
-        }
-      }
-    }
+    // double totalDeductionVal = 0.0;
+    // if (master.variables != null) {
+    //   for (var variable in master.variables!) {
+    //     final code = variable.code!;
+    //     final rowController = _qualityControllers[code];
+    //     if (rowController != null) {
+    //       final allowed = controller.allowedValueByCode(code, master: master);
+    //       final actual = double.tryParse(rowController.text) ?? 0.0;
+    //       totalDeductionVal +=
+    //           _calculateDeductionLocal(actual, allowed, variable.unitHint);
+    //     }
+    //   }
+    // }
 
     return Container(
       padding: EdgeInsets.symmetric(vertical: 12.h, horizontal: 10.w),
@@ -1835,19 +1837,19 @@ class _BillingScreenState extends State<BillingScreen> {
           ),
           const Expanded(flex: 2, child: SizedBox()),
           const Expanded(flex: 2, child: SizedBox()),
-          Expanded(
-            flex: 2,
-            child: Text(
-              totalDeductionVal.toStringAsFixed(2),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 15.sp,
-                fontWeight: FontWeight.bold,
-                color: totalDeductionVal > 0 ? redColor : greyColor,
-                fontFamily: FontFamily.jost,
-              ),
-            ),
-          ),
+          // Expanded(
+          //   flex: 2,
+          //   child: Text(
+          //     totalDeductionVal.toStringAsFixed(2),
+          //     textAlign: TextAlign.center,
+          //     style: TextStyle(
+          //       fontSize: 15.sp,
+          //       fontWeight: FontWeight.bold,
+          //       color: totalDeductionVal > 0 ? redColor : greyColor,
+          //       fontFamily: FontFamily.jost,
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );
@@ -1871,7 +1873,7 @@ class _BillingScreenState extends State<BillingScreen> {
     bool isLast = false,
   }) {
     // Use the passed deductionVal (which contains the unitHint logic)
-    final double displayDeduction = deductionVal;
+    // final double displayDeduction = deductionVal;
 
     return Container(
       padding: EdgeInsets.symmetric(vertical: 10.h, horizontal: 10.w),
@@ -1921,18 +1923,18 @@ class _BillingScreenState extends State<BillingScreen> {
               ),
             ),
           ),
-          Expanded(
-            flex: 2,
-            child: Text(
-              displayDeduction.toStringAsFixed(2),
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14.sp,
-                fontWeight: FontWeight.bold,
-                color: displayDeduction > 0 ? redColor : greyColor,
-              ),
-            ),
-          ),
+          // Expanded(
+          //   flex: 2,
+          //   child: Text(
+          //     displayDeduction.toStringAsFixed(2),
+          //     textAlign: TextAlign.center,
+          //     style: TextStyle(
+          //       fontSize: 14.sp,
+          //       fontWeight: FontWeight.bold,
+          //       color: displayDeduction > 0 ? redColor : greyColor,
+          //     ),
+          //   ),
+          // ),
         ],
       ),
     );

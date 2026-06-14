@@ -9,6 +9,7 @@ class BillListModel {
   final int? totalPages;
   final int? totalItems;
   final num? averageRate;
+  final num? totalAmount;
   final int? limit;
 
   BillListModel({
@@ -19,6 +20,7 @@ class BillListModel {
     this.totalPages,
     this.totalItems,
     this.averageRate,
+    this.totalAmount,
     this.limit,
   });
 
@@ -89,6 +91,10 @@ class BillListModel {
       averageRate: _parseNum(
           json,
           ['averageRate', 'average_rate', 'avgRate', 'avg_rate'],
+          jsonData is Map ? jsonData : null),
+      totalAmount: _parseNum(
+          json,
+          ['totalAmount', 'total_amount', 'totAmount', 'tot_amount'],
           jsonData is Map ? jsonData : null),
       limit: jsonData != null && jsonData is Map
           ? _toInt(jsonData['limit'])

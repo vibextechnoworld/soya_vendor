@@ -13,6 +13,7 @@ import 'package:soya_app/features/reports/view/widgets/farmer_bag_summary_dialog
 import 'package:soya_app/core/widgets/empty_state_widget.dart';
 import 'package:soya_app/routes/app_routes.dart';
 import 'package:soya_app/features/home/controller/billing_controller.dart';
+import 'package:soya_app/features/bottom_navigation_bar/controller/bottom_navbar_controller.dart';
 
 class FarmersReportScreen extends StatefulWidget {
   const FarmersReportScreen({super.key});
@@ -684,6 +685,47 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
                     SizedBox(width: 8.w),
                     Text(
                       "ADVANCE PAYMENT",
+                      style: TextStyle(
+                        fontSize: 16.sp,
+                        fontWeight: FontWeight.bold,
+                        fontFamily: FontFamily.jost,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+            Padding(
+              padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 5.h),
+              child: ElevatedButton(
+                onPressed: () {
+                  Navigator.pop(context); // Close bottom sheet
+                  Navigator.pop(context); // Close report screen
+                  
+                  // Set active farmer in KYC controller
+                  final kycController = Provider.of<FarmerKycController>(context, listen: false);
+                  kycController.setSelectedFarmer(farmer);
+
+                  // Switch bottom navbar index to Form tab & select KYC view
+                  final navBarController = Provider.of<BottomNavBarController>(context, listen: false);
+                  navBarController.updateFormView(FormView.farmerKYC);
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: primeryColor,
+                  foregroundColor: whiteColor,
+                  minimumSize: Size(double.infinity, 50.h),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(12.r),
+                  ),
+                  elevation: 0,
+                ),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(Icons.edit_note, size: 22.sp),
+                    SizedBox(width: 8.w),
+                    Text(
+                      "UPDATE KYC / LAND DETAILS",
                       style: TextStyle(
                         fontSize: 16.sp,
                         fontWeight: FontWeight.bold,

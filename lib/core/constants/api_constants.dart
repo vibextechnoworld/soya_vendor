@@ -72,6 +72,7 @@ class ApiConstants {
   //newApis
   static const String getInventoryLocations = '$baseUrl/stock/locations'; //get
   static const String getThappis = '$baseUrl/stock/thappis'; //get
+  static const String deleteThappi = '$baseUrl/stock/thappis/{{thappiId}}'; //delete
   static const String splitThappi =
       '$baseUrl/stock/thappis/{{thappiId}}/split'; //post
   static const String mergeThappis = '$baseUrl/stock/thappis/merge'; //post
@@ -179,4 +180,5 @@ class ApiConstants {
       '$baseUrl/admin/farmers/{{farmerId}}/advances'; //post
   static const String getFarmerAdvanceBalance =
       '$baseUrl/admin/farmers/{{farmerId}}/advance-balance'; //get
+  static const String disclaimer = '$baseUrl/disclaimer';
 }

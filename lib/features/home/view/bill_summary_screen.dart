@@ -20,6 +20,9 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:path/path.dart' as p;
+import 'package:soya_app/core/services/image_picker_service.dart';
+import 'package:dotted_border/dotted_border.dart';
 
 class BillSummaryScreen extends StatefulWidget {
   final String billId;
@@ -993,6 +996,219 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
     );
   }
 
+  Future<Map<String, dynamic>?> _showAdditionalDocumentDialog(
+    BuildContext context,
+    BillingController controller,
+    String billId,
+  ) async {
+    final TextEditingController remarkController = TextEditingController();
+    final List<File> selectedFiles = [];
+
+    return showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setDialogState) {
+            return AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16.r),
+              ),
+              title: Text(
+                "Add Remarks / Documents",
+                style: TextStyle(
+                  fontFamily: FontFamily.jost,
+                  fontSize: 18.sp,
+                  fontWeight: FontWeight.bold,
+                  color: blackColor,
+                ),
+              ),
+              content: SingleChildScrollView(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildDialogLabel("Remark (Optional)"),
+                    TextField(
+                      controller: remarkController,
+                      maxLines: 3,
+                      style: TextStyle(
+                        fontSize: 14.sp,
+                        fontFamily: FontFamily.jost,
+                      ),
+                      decoration: InputDecoration(
+                        hintText: "Enter any remarks here...",
+                        hintStyle: TextStyle(
+                          fontSize: 14.sp,
+                          fontFamily: FontFamily.jost,
+                          color: greyColor.withOpacity(0.6),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                            horizontal: 12.w, vertical: 12.h),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6.r),
+                          borderSide: BorderSide(
+                              color: Colors.grey.withOpacity(0.4)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(6.r),
+                          borderSide: BorderSide(color: primeryColor),
+                        ),
+                      ),
+                    ),
+                    SizedBox(height: 16.h),
+                    _buildDialogLabel("Upload Document(s) (Optional)"),
+                    GestureDetector(
+                      onTap: () async {
+                        try {
+                          final files = await ImagePickerService.pickMultipleFiles(context);
+                          if (files != null && files.isNotEmpty) {
+                            setDialogState(() {
+                              selectedFiles.addAll(files);
+                            });
+                          }
+                        } catch (e) {
+                          debugPrint('Error picking files: $e');
+                        }
+                      },
+                      child: DottedBorder(
+                        color: primeryColor,
+                        strokeWidth: 1,
+                        dashPattern: const [5, 5],
+                        borderType: BorderType.RRect,
+                        radius: Radius.circular(8.r),
+                        child: Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.symmetric(vertical: 20.h),
+                          color: primeryColor.withOpacity(0.02),
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(
+                                Icons.cloud_upload_outlined,
+                                color: primeryColor,
+                                size: 36.sp,
+                              ),
+                              SizedBox(height: 8.h),
+                              Text(
+                                "Upload Remark File(s)",
+                                textAlign: TextAlign.center,
+                                style: TextStyle(
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w500,
+                                  color: blackColor.withOpacity(0.7),
+                                  fontFamily: FontFamily.jost,
+                                ),
+                              ),
+                              SizedBox(height: 4.h),
+                              Text(
+                                "Supports JPG, PNG, PDF",
+                                style: TextStyle(
+                                  fontSize: 11.sp,
+                                  color: greyColor,
+                                  fontFamily: FontFamily.jost,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                    if (selectedFiles.isNotEmpty) ...[
+                      SizedBox(height: 12.h),
+                      Container(
+                        constraints: BoxConstraints(maxHeight: 120.h),
+                        child: ListView.separated(
+                          shrinkWrap: true,
+                          itemCount: selectedFiles.length,
+                          separatorBuilder: (context, index) => SizedBox(height: 6.h),
+                          itemBuilder: (context, index) {
+                            final file = selectedFiles[index];
+                            final name = file.path.split('/').last.split('\\').last;
+                            return Row(
+                              children: [
+                                Icon(Icons.insert_drive_file_outlined, color: primeryColor, size: 18.sp),
+                                SizedBox(width: 8.w),
+                                Expanded(
+                                  child: Text(
+                                    name,
+                                    style: TextStyle(
+                                      fontSize: 12.sp,
+                                      fontFamily: FontFamily.jost,
+                                      color: blackColor,
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  ),
+                                ),
+                                IconButton(
+                                  onPressed: () {
+                                    setDialogState(() {
+                                      selectedFiles.removeAt(index);
+                                    });
+                                  },
+                                  icon: Icon(Icons.cancel_outlined, color: Colors.red, size: 18.sp),
+                                  padding: EdgeInsets.zero,
+                                  constraints: const BoxConstraints(),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () {
+                    Navigator.pop(context, {
+                      'remark': '',
+                      'remarkFiles': <File>[],
+                    });
+                  },
+                  child: Text(
+                    "Skip",
+                    style: TextStyle(
+                      color: greyColor,
+                      fontSize: 14.sp,
+                      fontFamily: FontFamily.jost,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+                ElevatedButton(
+                  onPressed: () {
+                    Navigator.pop(context, {
+                      'remark': remarkController.text.trim(),
+                      'remarkFiles': selectedFiles,
+                    });
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: primeryColor,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                  ),
+                  child: Text(
+                    "Submit",
+                    style: TextStyle(
+                      color: whiteColor,
+                      fontSize: 14.sp,
+                      fontFamily: FontFamily.jost,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            );
+          },
+        );
+      },
+    );
+  }
+
   Widget _buildFinalizeButton(
     BuildContext context,
     BillingController controller,
@@ -1010,13 +1226,30 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                   listen: false,
                 );
 
+                // Show additional document popup before confirming
+                final additionalData = await _showAdditionalDocumentDialog(
+                  context,
+                  controller,
+                  widget.billId,
+                );
+
+                if (additionalData == null) return; // Vendor cancelled dialog
+                if (!context.mounted) return;
+
+                final String remark = additionalData['remark'] ?? '';
+                final List<File> remarkFiles = List<File>.from(additionalData['remarkFiles'] ?? []);
+
                 // 1. Confirm Bill
                 final success = await controller.confirmDraftBill(
                   context: context,
                   billId: widget.billId,
+                  remark: remark,
+                  remarkFiles: remarkFiles,
                 );
 
-                if (success && mounted) {
+                if (!context.mounted) return;
+
+                if (success) {
                   // 2. Show Return Bags Dialog
                   await _showReturnBagsDialog(
                     context,
@@ -1024,19 +1257,19 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                     widget.billId,
                   );
 
-                  if (mounted) {
-                    // 3. Show Success Dialog with Options
-                    await _showSuccessDialog(
-                      context,
-                      controller,
-                      widget.billId,
-                    );
+                  if (!context.mounted) return;
 
-                    // 4. Navigate away after dialog is closed
-                    controller.reset(); // Clear all billing data
-                    botNav.updateFormView(FormView.selection);
-                    nav.pop();
-                  }
+                  // 3. Show Success Dialog with Options
+                  await _showSuccessDialog(
+                    context,
+                    controller,
+                    widget.billId,
+                  );
+
+                  // 4. Navigate away after dialog is closed
+                  controller.reset(); // Clear all billing data
+                  botNav.updateFormView(FormView.selection);
+                  nav.pop();
                 }
               },
         style: ElevatedButton.styleFrom(

@@ -73,8 +73,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         Text(
                           controller.userName ?? 'User Name',
                           style: TextStyle(
-                            fontSize: 22.sp,
-                            fontWeight: FontWeight.w600,
+                            fontSize: 18.sp,
+                            fontWeight: FontWeight.w900,
                             color: blackColor,
                             fontFamily: FontFamily.jost,
                           ),
@@ -95,7 +95,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
                               mainAxisSize: MainAxisSize.min,
                               children: [
                                 Icon(Icons.verified,
-                                    size: 16.sp, color: const Color(0xFFFFB300)),
+                                    size: 16.sp,
+                                    color: const Color(0xFFFFB300)),
                                 SizedBox(width: 6.w),
                                 Text(
                                   'Master Vendor',
@@ -178,16 +179,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                     padding: EdgeInsets.symmetric(
                                         horizontal: 16.w, vertical: 12.h),
                                     decoration: BoxDecoration(
-                                      color: const Color(0xFFE3F2FD), // Billing theme blue
+                                      color: const Color(
+                                          0xFFE3F2FD), // Billing theme blue
                                       borderRadius: BorderRadius.circular(12.r),
                                       border: Border.all(
-                                          color: const Color(0xFF2196F3).withOpacity(0.3)),
+                                          color: const Color(0xFF2196F3)
+                                              .withOpacity(0.3)),
                                     ),
                                     child: Row(
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Icon(Icons.trending_up,
-                                            size: 18.sp, color: const Color(0xFF2196F3)),
+                                            size: 18.sp,
+                                            color: const Color(0xFF2196F3)),
                                         SizedBox(width: 8.w),
                                         Text(
                                           'Current Rate: ',

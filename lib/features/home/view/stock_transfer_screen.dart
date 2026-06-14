@@ -466,6 +466,16 @@ class _StockTransferScreenState extends State<StockTransferScreen>
                                         ],
                                       ),
                                     ),
+                                    if (!isNotAvailable)
+                                      IconButton(
+                                        icon: Icon(Icons.delete_outline,
+                                            color: Colors.red.shade400,
+                                            size: 20.sp),
+                                        onPressed: () {
+                                          _showDeleteThappiConfirmation(
+                                              context, sc, thappi);
+                                        },
+                                      ),
                                   ],
                                 ),
                               ),
@@ -530,6 +540,41 @@ class _StockTransferScreenState extends State<StockTransferScreen>
           },
         );
       },
+    );
+  }
+
+  void _showDeleteThappiConfirmation(
+      BuildContext context, StockController controller, Thappi thappi) {
+    showDialog(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text('Delete Thappi'),
+        content: Text(
+            'Are you sure you want to delete Thappi: ${thappi.code}? This action cannot be undone.'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text('CANCEL'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              Navigator.pop(context); // Close confirmation dialog
+              final success = await controller.deleteThappi(
+                context: this.context, // Use screen/parent context
+                thappiId: thappi.id,
+                locationId: _selectedSourceLocationId!,
+              );
+              if (success) {
+                setState(() {
+                  _selectedThappis.removeWhere((t) => t.id == thappi.id);
+                });
+              }
+            },
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: const Text('DELETE', style: TextStyle(color: Colors.white)),
+          ),
+        ],
+      ),
     );
   }
 

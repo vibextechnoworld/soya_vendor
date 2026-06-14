@@ -189,7 +189,7 @@ class FarmerKycController with ChangeNotifier {
 
     try {
       // Use the same search parameter strategy as BillingController
-      String url = "${ApiConstants.nonKycFarmerList}?page=1&limit=20";
+      String url = "${ApiConstants.farmerProfile}?page=1&limit=20";
 
       if (_searchType == FarmerSearchType.name) {
         url += '&search=${Uri.encodeComponent(query)}';
@@ -1068,6 +1068,12 @@ class FarmerKycController with ChangeNotifier {
     required BuildContext context,
     required String farmerId,
     required String landType,
+    String? villageAdd,
+    String? taluka,
+    String? district,
+    String? area,
+    String? landOwnerName,
+    String? relationType,
   }) async {
     _setLoading(true);
     _errorMessage = null;
@@ -1075,7 +1081,18 @@ class FarmerKycController with ChangeNotifier {
     try {
       final url = ApiConstants.updateFarmerLandById
           .replaceAll('{{farmerId}}', farmerId);
-      final response = await _apiService.put(url, body: {'landType': landType});
+      
+      final Map<String, String> body = {
+        'landType': landType,
+      };
+      if (villageAdd != null) body['villageAdd'] = villageAdd;
+      if (taluka != null) body['taluka'] = taluka;
+      if (district != null) body['district'] = district;
+      if (area != null) body['area'] = area;
+      if (landOwnerName != null) body['landOwnerName'] = landOwnerName;
+      if (relationType != null) body['relationType'] = relationType;
+
+      final response = await _apiService.put(url, body: body);
 
       final result = ApiHelper.handleResponse(
         response,

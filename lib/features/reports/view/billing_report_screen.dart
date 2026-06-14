@@ -85,6 +85,7 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                     _buildStatHeader(
                       averageRate: controller.averageRate,
                       total: total,
+                      totalAmount: controller.totalAmount,
                     ),
                     _buildResultsSummary(
                       total: total,
@@ -251,29 +252,46 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
     );
   }
 
-  Widget _buildStatHeader({required num averageRate, required int total}) {
-    if (averageRate <= 0 && total <= 0) return const SizedBox.shrink();
+  Widget _buildStatHeader({
+    required num averageRate,
+    required int total,
+    required num totalAmount,
+  }) {
+    if (averageRate <= 0 && total <= 0 && totalAmount <= 0) {
+      return const SizedBox.shrink();
+    }
 
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 8.h),
-      child: Row(
+      child: Column(
         children: [
-          Expanded(
-            child: _buildStatCard(
-              "Avg Rate",
-              "₹${averageRate.toStringAsFixed(2)}",
-              Icons.trending_up,
-              appColor.withOpacity(0.1),
-            ),
+          _buildStatCard(
+            "Total Amount",
+            "₹${totalAmount.toStringAsFixed(2)}",
+            Icons.currency_rupee,
+            Colors.green.withOpacity(0.1),
           ),
-          SizedBox(width: 12.w),
-          Expanded(
-            child: _buildStatCard(
-              "Total Bills",
-              "$total",
-              Icons.receipt_long,
-              Colors.orange.withOpacity(0.1),
-            ),
+          SizedBox(height: 10.h),
+          Row(
+            children: [
+              Expanded(
+                child: _buildStatCard(
+                  "Avg Rate",
+                  "₹${averageRate.toStringAsFixed(2)}",
+                  Icons.trending_up,
+                  appColor.withOpacity(0.1),
+                ),
+              ),
+              SizedBox(width: 12.w),
+              Expanded(
+                child: _buildStatCard(
+                  "Total Bills",
+                  "$total",
+                  Icons.receipt_long,
+                  Colors.orange.withOpacity(0.1),
+                ),
+              ),
+            ],
           ),
         ],
       ),
@@ -513,7 +531,7 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
               columnSpacing: 24.w,
               headingRowHeight: 60.h,
               dataRowMinHeight: 60.h,
-              dataRowMaxHeight: 60.h,
+              dataRowMaxHeight: 85.h,
               headingRowColor:
                   WidgetStateProperty.all(appColor.withOpacity(0.1)),
               border: TableBorder(
@@ -568,7 +586,7 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                     DataCell(Text("₹$amount",
                         style: _cellStyle(color: primeryColor, isBold: true))),
                     DataCell(_buildStatusBadge(status)),
-                    DataCell(_buildPaymentStatusBadge(status)),
+                    DataCell(_buildPaymentStatusBadge(bill)),
                     DataCell(
                       SizedBox(
                         width: 150.w,
@@ -730,30 +748,51 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
     );
   }
 
-  Widget _buildPaymentStatusBadge(String status) {
-    bool isPaid = status.toLowerCase() == 'finalized' ||
-        status.toLowerCase() == 'completed' ||
-        status.toLowerCase().contains('paid');
-    Color color = isPaid ? Colors.green : Colors.blue;
-    Color bg = color.withOpacity(0.1);
-    String label = isPaid ? "PAID" : "UNPAID";
+  Widget _buildPaymentStatusBadge(BillModel bill) {
+    final status = bill.paymentStatus ?? 'PENDING';
+    Color color;
+    switch (status.toUpperCase()) {
+      case 'PAID':
+        color = Colors.green;
+        break;
+      case 'PENDING':
+        color = Colors.orange;
+        break;
+      case 'HOLD':
+        color = Colors.red;
+        break;
+      case 'PROCESSING':
+        color = Colors.blue;
+        break;
+      default:
+        color = Colors.grey;
+    }
+    final bg = color.withOpacity(0.1);
 
-    return Container(
-      padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
-      decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(20.r),
-        border: Border.all(color: color.withOpacity(0.3)),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          fontSize: 10.sp,
-          color: color,
-          fontWeight: FontWeight.bold,
-          fontFamily: FontFamily.jost,
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 5.h),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(20.r),
+            border: Border.all(color: color.withOpacity(0.3)),
+          ),
+          child: Text(
+            status.toUpperCase(),
+            style: TextStyle(
+              fontSize: 10.sp,
+              color: color,
+              fontWeight: FontWeight.bold,
+              fontFamily: FontFamily.jost,
+            ),
+          ),
         ),
-      ),
+        if (status.toUpperCase() == 'HOLD')
+          _HoldReasonWidget(billId: bill.id ?? ""),
+      ],
     );
   }
 
@@ -966,6 +1005,72 @@ class _BillFilterBottomSheetState extends State<BillFilterBottomSheet> {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _HoldReasonWidget extends StatelessWidget {
+  final String billId;
+
+  const _HoldReasonWidget({required this.billId});
+
+  @override
+  Widget build(BuildContext context) {
+    if (billId.isEmpty) return const SizedBox.shrink();
+    return FutureBuilder<List<dynamic>>(
+      future: context.read<BillingController>().fetchPaymentActivities(billId),
+      builder: (context, snapshot) {
+        if (snapshot.connectionState == ConnectionState.waiting) {
+          return Padding(
+            padding: EdgeInsets.only(top: 4.h),
+            child: SizedBox(
+              width: 10.w,
+              height: 10.w,
+              child: const CircularProgressIndicator(
+                strokeWidth: 1.5,
+                color: Colors.red,
+              ),
+            ),
+          );
+        }
+        if (snapshot.hasError || snapshot.data == null || snapshot.data!.isEmpty) {
+          return const SizedBox.shrink();
+        }
+        final activities = snapshot.data!;
+        
+        // Find the latest activity with status HOLD that has remarks
+        final holdActivities = activities.where(
+          (a) => a['newStatus']?.toString().toUpperCase() == 'HOLD' && a['remarks'] != null && a['remarks'].toString().isNotEmpty,
+        ).toList();
+        
+        final activityToShow = holdActivities.isNotEmpty 
+            ? holdActivities.first 
+            : activities.firstWhere(
+                (a) => a['remarks'] != null && a['remarks'].toString().isNotEmpty,
+                orElse: () => null,
+              );
+
+        if (activityToShow != null && activityToShow['remarks'] != null && activityToShow['remarks'].toString().isNotEmpty) {
+          return Padding(
+            padding: EdgeInsets.only(top: 4.h),
+            child: SizedBox(
+              width: 150.w,
+              child: Text(
+                'Reason: ${activityToShow['remarks']}',
+                style: TextStyle(
+                  fontSize: 10.sp,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.red[900],
+                  fontFamily: FontFamily.jost,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+          );
+        }
+        return const SizedBox.shrink();
+      },
     );
   }
 }

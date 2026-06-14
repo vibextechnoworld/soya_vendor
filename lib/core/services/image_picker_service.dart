@@ -67,6 +67,73 @@ class ImagePickerService {
     return null;
   }
 
+  /// Picks multiple images or documents after showing a source selection dialog.
+  /// Handles keyboard unfocusing and permission checks.
+  static Future<List<File>?> pickMultipleFiles(BuildContext context) async {
+    // 1. Unfocus keyboard immediately to prevent UI lag
+    FocusScope.of(context).unfocus();
+
+    // 2. Show source selection dialog
+    final source = await _showImageSourceDialog(context);
+    if (source == null) return null;
+
+    // 3. Add a small delay to allow the bottom sheet to close and UI thread to settle
+    await Future.delayed(const Duration(milliseconds: 300));
+
+    // 4. Handle picking based on source
+    try {
+      if (source == FileSource.document) {
+        final result = await FilePicker.platform.pickFiles(
+          type: FileType.custom,
+          allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png', 'bmp'],
+          allowMultiple: true,
+          withData: false, // Don't load file data into memory
+        );
+        if (result != null && result.files.isNotEmpty) {
+          return result.files
+              .where((f) => f.path != null)
+              .map((f) => File(f.path!))
+              .toList();
+        }
+        return null;
+      }
+
+      if (source == FileSource.camera) {
+        final hasPermission = await _handlePermissions(context, ImageSource.camera);
+        if (!hasPermission) return null;
+
+        final XFile? image = await _picker.pickImage(
+          source: ImageSource.camera,
+          imageQuality: 80,
+        );
+        if (image != null) {
+          return [File(image.path)];
+        }
+        return null;
+      }
+
+      if (source == FileSource.gallery) {
+        final hasPermission = await _handlePermissions(context, ImageSource.gallery);
+        if (!hasPermission) return null;
+
+        final List<XFile> images = await _picker.pickMultiImage(
+          imageQuality: 80,
+        );
+        if (images.isNotEmpty) {
+          return images.map((img) => File(img.path)).toList();
+        }
+        return null;
+      }
+    } catch (e) {
+      debugPrint('Error picking files: $e');
+      if (context.mounted) {
+        ToastMessage.show(context,
+            message: 'Error picking files: $e', isError: true);
+      }
+    }
+    return null;
+  }
+
   static Future<bool> _handlePermissions(
       BuildContext context, ImageSource source) async {
     if (source == ImageSource.camera) {

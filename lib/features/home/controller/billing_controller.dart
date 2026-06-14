@@ -1,7 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:developer';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soya_app/core/constants/api_constants.dart';
 import 'package:soya_app/core/services/api_service.dart';
@@ -251,8 +254,14 @@ class BillingController extends ChangeNotifier {
   num _averageRate = 0;
   num get averageRate => _averageRate;
 
+  num _totalAmount = 0;
+  num get totalAmount => _totalAmount;
+
   BillModel? _selectedBillDetails;
   BillModel? get selectedBillDetails => _selectedBillDetails;
+
+  // Cache for payment activities to avoid redundant requests in lists
+  final Map<String, List<dynamic>> _paymentActivitiesCache = {};
 
   String? _editingBillId;
   String? get editingBillId => _editingBillId;
@@ -397,9 +406,10 @@ class BillingController extends ChangeNotifier {
             .toList();
 
         // Set default selected variation (if any exists)
-        if (_deductionMasters.any((m) => m.type == "FORMULA")) {
-          final firstFormula =
-              _deductionMasters.firstWhere((m) => m.type == "FORMULA");
+        if (_deductionMasters
+            .any((m) => m.type == "FORMULA" && m.isActive == true)) {
+          final firstFormula = _deductionMasters
+              .firstWhere((m) => m.type == "FORMULA" && m.isActive == true);
           if (firstFormula.variableValues?.isNotEmpty == true) {
             _selectedVariationMaster = firstFormula;
             _selectedVariationValue = firstFormula.variableValues!.first;
@@ -493,8 +503,10 @@ class BillingController extends ChangeNotifier {
   Future<void> fetchRatesByDate(DateTime date, {BuildContext? context}) async {
     _setLoading(true);
     try {
-      final formattedDate = "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
-      final response = await _apiService.get("${ApiConstants.getTodaysRate}?startDate=$formattedDate&endDate=$formattedDate");
+      final formattedDate =
+          "${date.year}-${date.month.toString().padLeft(2, '0')}-${date.day.toString().padLeft(2, '0')}";
+      final response = await _apiService.get(
+          "${ApiConstants.getTodaysRate}?startDate=$formattedDate&endDate=$formattedDate");
       log("Rates for $formattedDate API response: ${response.body}");
       final result = ApiHelper.handleResponse(
         response,
@@ -576,19 +588,23 @@ class BillingController extends ChangeNotifier {
     _setLoading(true);
     _rateHistoryPage = page;
     try {
-      final start = _rateHistoryStartDate ?? DateTime.now().subtract(const Duration(days: 30));
+      final start = _rateHistoryStartDate ??
+          DateTime.now().subtract(const Duration(days: 30));
       final end = _rateHistoryEndDate ?? DateTime.now();
 
-      final formattedStart = "${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}";
-      final formattedEnd = "${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}";
+      final formattedStart =
+          "${start.year}-${start.month.toString().padLeft(2, '0')}-${start.day.toString().padLeft(2, '0')}";
+      final formattedEnd =
+          "${end.year}-${end.month.toString().padLeft(2, '0')}-${end.day.toString().padLeft(2, '0')}";
 
-      String url = "${ApiConstants.getTodaysRate}?startDate=$formattedStart&endDate=$formattedEnd";
+      String url =
+          "${ApiConstants.getTodaysRate}?startDate=$formattedStart&endDate=$formattedEnd";
       debugPrint("FETCH RATE HISTORY URL: $url");
       final response = await _apiService.get(url);
-      
+
       print('🌐 RATE HISTORY RESPONSE CODE: ${response.statusCode}');
       print('🌐 RATE HISTORY RESPONSE BODY: ${response.body}');
-      
+
       final result = ApiHelper.handleResponse(
         response,
         defaultSuccessMessage: 'Rates fetched successfully',
@@ -604,7 +620,8 @@ class BillingController extends ChangeNotifier {
           _rateHistoryTotalPages = result.data['totalPages'];
           _rateHistoryTotalItems = result.data['totalItems'] ?? allRates.length;
           _rateHistory = allRates;
-        } else if (result.data['data'] != null && result.data['data']['pagination'] != null) {
+        } else if (result.data['data'] != null &&
+            result.data['data']['pagination'] != null) {
           final pag = result.data['data']['pagination'];
           _rateHistoryTotalPages = pag['totalPages'] ?? 1;
           _rateHistoryTotalItems = pag['total'] ?? allRates.length;
@@ -617,7 +634,7 @@ class BillingController extends ChangeNotifier {
 
           final startIndex = (page - 1) * limit;
           final endIndex = startIndex + limit;
-          
+
           if (startIndex < allRates.length) {
             _rateHistory = allRates.sublist(
               startIndex,
@@ -1064,6 +1081,8 @@ class BillingController extends ChangeNotifier {
   Future<bool> confirmDraftBill({
     required BuildContext context,
     String? billId,
+    String? remark,
+    List<File>? remarkFiles,
   }) async {
     final targetBillId = billId ?? _draftBillId;
     if (targetBillId == null) return false;
@@ -1075,12 +1094,52 @@ class BillingController extends ChangeNotifier {
 
       final url =
           ApiConstants.confirmBillDraft.replaceAll('{{billId}}', targetBillId);
-      final response = await _apiService.post(
-        url,
-        body: {
+
+      http.Response response;
+      if (remarkFiles != null && remarkFiles.isNotEmpty) {
+        final Map<String, String> fields = {
           if (locationName != null) 'billLocation': locationName,
-        },
-      );
+          if (remark != null && remark.isNotEmpty) 'remark': remark,
+        };
+        final List<http.MultipartFile> files = [];
+        for (final file in remarkFiles) {
+          if (await file.exists()) {
+            final extension = file.path.split('.').last.toLowerCase();
+            String mimeType = (extension == 'png') ? 'image/png' : 'image/jpeg';
+            files.add(
+              await http.MultipartFile.fromPath(
+                'remarkFile',
+                file.path,
+                contentType: MediaType.parse(mimeType),
+              ),
+            );
+          }
+        }
+        if (files.isNotEmpty) {
+          response = await _apiService.multipartRequest(
+            url,
+            method: 'POST',
+            fields: fields,
+            files: files,
+          );
+        } else {
+          response = await _apiService.post(
+            url,
+            body: {
+              if (locationName != null) 'billLocation': locationName,
+              if (remark != null && remark.isNotEmpty) 'remark': remark,
+            },
+          );
+        }
+      } else {
+        response = await _apiService.post(
+          url,
+          body: {
+            if (locationName != null) 'billLocation': locationName,
+            if (remark != null && remark.isNotEmpty) 'remark': remark,
+          },
+        );
+      }
 
       final result = ApiHelper.handleResponse(
         response,
@@ -1164,6 +1223,7 @@ class BillingController extends ChangeNotifier {
     _setLoading(true);
     _billSearchQuery = search;
     _averageRate = 0; // Reset average rate when fetching new data
+    _totalAmount = 0; // Reset total amount when fetching new data
     try {
       final prefs = await SharedPreferences.getInstance();
       final vendorId = _ignoreVendorId ? "" : (prefs.getString('userId') ?? "");
@@ -1196,6 +1256,7 @@ class BillingController extends ChangeNotifier {
         _totalPages = billListModel.totalPages ??
             (_totalItems > 0 ? (_totalItems / limit).ceil() : 1);
         _averageRate = billListModel.averageRate ?? 0;
+        _totalAmount = billListModel.totalAmount ?? 0;
 
         // Fallback: If averageRate is 0 but bills are available, calculate locally from the results
         if (_averageRate == 0 && _bills.isNotEmpty) {
@@ -1211,6 +1272,16 @@ class BillingController extends ChangeNotifier {
           if (count > 0) {
             _averageRate = totalRate / count;
           }
+        }
+
+        // Fallback: If totalAmount is 0 but bills are available, calculate locally from the results
+        if (_totalAmount == 0 && _bills.isNotEmpty) {
+          double totalSum = 0;
+          for (var bill in _bills) {
+            final amt = bill.netPayable ?? bill.totalAmount ?? 0;
+            totalSum += amt;
+          }
+          _totalAmount = totalSum;
         }
         notifyListeners();
       }
@@ -1297,7 +1368,8 @@ class BillingController extends ChangeNotifier {
 
   Future<void> fetchFarmerAdvanceBalance(String farmerId) async {
     try {
-      final url = ApiConstants.getFarmerAdvanceBalance.replaceAll('{{farmerId}}', farmerId);
+      final url = ApiConstants.getFarmerAdvanceBalance
+          .replaceAll('{{farmerId}}', farmerId);
       final response = await _apiService.get(url);
       final result = ApiHelper.handleResponse(
         response,
@@ -1306,7 +1378,8 @@ class BillingController extends ChangeNotifier {
       );
 
       if (result.success && result.data != null) {
-        _farmerAdvanceBalance = (result.data['data']?['balance'] ?? 0).toDouble();
+        _farmerAdvanceBalance =
+            (result.data['data']?['balance'] ?? 0).toDouble();
       } else {
         _farmerAdvanceBalance = 0.0;
       }
@@ -1327,7 +1400,8 @@ class BillingController extends ChangeNotifier {
   }) async {
     _setLoading(true);
     try {
-      final url = ApiConstants.addFarmerAdvance.replaceAll('{{farmerId}}', farmerId);
+      final url =
+          ApiConstants.addFarmerAdvance.replaceAll('{{farmerId}}', farmerId);
       final response = await _apiService.post(
         url,
         body: {
@@ -1413,9 +1487,10 @@ class BillingController extends ChangeNotifier {
     _selectedVariationValue = null;
     _selectedVariationMaster = null;
     // Re-select default variation if available
-    if (_deductionMasters.any((m) => m.type == "FORMULA")) {
-      final firstFormula =
-          _deductionMasters.firstWhere((m) => m.type == "FORMULA");
+    if (_deductionMasters
+        .any((m) => m.type == "FORMULA" && m.isActive == true)) {
+      final firstFormula = _deductionMasters
+          .firstWhere((m) => m.type == "FORMULA" && m.isActive == true);
       if (firstFormula.variableValues?.isNotEmpty == true) {
         _selectedVariationMaster = firstFormula;
         _selectedVariationValue = firstFormula.variableValues!.first;
@@ -1466,7 +1541,29 @@ class BillingController extends ChangeNotifier {
     _rateHistoryStartDate = null;
     _rateHistoryEndDate = null;
     if (_billSearchDebounce?.isActive ?? false) _billSearchDebounce!.cancel();
+    _paymentActivitiesCache.clear();
     notifyListeners();
+  }
+
+  Future<List<dynamic>> fetchPaymentActivities(String billId) async {
+    if (_paymentActivitiesCache.containsKey(billId)) {
+      return _paymentActivitiesCache[billId]!;
+    }
+    try {
+      final url = '${ApiConstants.baseUrl}/admin/payments/$billId/activities';
+      final response = await _apiService.get(url);
+      final responseData = jsonDecode(response.body);
+      if (responseData['success'] == true) {
+        final List<dynamic> list = responseData['data'] ?? [];
+        _paymentActivitiesCache[billId] = list;
+        return list;
+      } else {
+        return [];
+      }
+    } catch (e) {
+      debugPrint('Error fetching payment activities: $e');
+      return [];
+    }
   }
 }
 

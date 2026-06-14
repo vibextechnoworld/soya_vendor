@@ -835,6 +835,49 @@ class StockController with ChangeNotifier {
     }
   }
 
+  /// Delete a Thappi
+  Future<bool> deleteThappi({
+    required BuildContext context,
+    required String thappiId,
+    required String locationId,
+  }) async {
+    _setLoading(true);
+    _errorMessage = null;
+
+    try {
+      final url = ApiConstants.deleteThappi.replaceAll('{{thappiId}}', thappiId);
+      final response = await _apiService.delete(url);
+
+      final result = ApiHelper.handleResponse(
+        response,
+        defaultSuccessMessage: 'Thappi deleted successfully!',
+        defaultErrorMessage: 'Failed to delete thappi',
+      );
+
+      if (result.success) {
+        if (context.mounted) {
+          ToastMessage.show(context, message: result.message, isError: false);
+        }
+        await fetchThappisForLocation(locationId);
+        return true;
+      } else {
+        _errorMessage = result.message;
+        if (context.mounted) {
+          ToastMessage.show(context, message: _errorMessage!, isError: true);
+        }
+        return false;
+      }
+    } catch (e) {
+      _errorMessage = 'Error deleting thappi: $e';
+      if (context.mounted) {
+        ToastMessage.show(context, message: _errorMessage!, isError: true);
+      }
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
   /// Dispatch Stock Transfer
   Future<bool> dispatchStockTransfer({
     required BuildContext context,
