@@ -165,6 +165,22 @@ class BillModel {
   final String? billLocation;
   final CalculationDetails? calculationDetails;
 
+  bool get isOverdue {
+    if (paymentStatus != null && paymentStatus!.toUpperCase() == 'PAID') {
+      return false;
+    }
+    final dateStr = billDate ?? createdAt;
+    if (dateStr == null) return false;
+    DateTime? billDateTime;
+    try {
+      billDateTime = DateTime.parse(dateStr);
+    } catch (_) {
+      return false;
+    }
+    final diff = DateTime.now().difference(billDateTime);
+    return diff.inDays >= 2;
+  }
+
   BillModel({
     this.id,
     this.billNo,
