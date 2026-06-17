@@ -75,209 +75,55 @@ class PdfInvoiceService {
     pdf.addPage(
       pw.Page(
         pageFormat: PdfPageFormat.a4,
-        margin: const pw.EdgeInsets.all(12),
+        margin: const pw.EdgeInsets.all(9),
         build: (context) {
-          return pw.Container(
-            decoration: pw.BoxDecoration(
-              border: pw.Border.all(color: PdfColors.black, width: 0.8),
-            ),
-            padding: const pw.EdgeInsets.all(6),
-            child: pw.Column(
-              crossAxisAlignment: pw.CrossAxisAlignment.stretch,
-              children: [
-                _a4Header(ttf, ttfBold),
-                pw.SizedBox(height: 5),
-                pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Expanded(
-                      child: _boxedSection(
-                        title: 'FARMER INFORMATION',
-                        icon: 'ID',
-                        ttf: ttf,
-                        ttfBold: ttfBold,
-                        child: pw.Column(
-                          children: [
-                            _a4Field(ttf, ttfBold, 'Farmer ID', data.farmerId),
-                            _a4Field(
-                                ttf, ttfBold, 'Farmer Name', data.farmerName),
-                            _a4Field(ttf, ttfBold, 'Aadhaar No.', data.aadhaar),
-                            _a4Field(ttf, ttfBold, 'Mobile No.', data.mobile),
-                            _a4Field(ttf, ttfBold, 'Village', data.village),
-                            _a4Field(ttf, ttfBold, 'Taluka', data.taluka),
-                            _a4Field(ttf, ttfBold, 'District', data.district),
-                          ],
-                        ),
-                      ),
-                    ),
-                    pw.SizedBox(width: 6),
-                    pw.Expanded(
-                      child: _boxedSection(
-                        title: 'PURCHASE INFORMATION',
-                        icon: 'GRN',
-                        ttf: ttf,
-                        ttfBold: ttfBold,
-                        child: pw.Column(
-                          children: [
-                            pw.Container(
-                              margin: const pw.EdgeInsets.only(bottom: 5),
-                              padding: const pw.EdgeInsets.symmetric(
-                                  horizontal: 8, vertical: 4),
-                              decoration: pw.BoxDecoration(
-                                border: pw.Border.all(
-                                    color: PdfColors.grey700, width: 0.6),
-                                borderRadius: pw.BorderRadius.circular(2),
-                              ),
-                              child: pw.Row(
-                                mainAxisAlignment:
-                                    pw.MainAxisAlignment.spaceBetween,
-                                children: [
-                                  pw.Text("Today's Purchase Rate",
-                                      style: pw.TextStyle(
-                                          font: ttfBold, fontSize: 8)),
-                                  pw.Text('Rs. ${data.actualRate} / Qtl',
-                                      style: pw.TextStyle(
-                                          font: ttfBold, fontSize: 8)),
-                                ],
-                              ),
-                            ),
-                            _a4Field(ttf, ttfBold, 'GRN No.', data.grnNo),
-                            _a4Field(ttf, ttfBold, 'KP No.', data.kpNo),
-                            _a4Field(ttf, ttfBold, 'Date', data.date),
-                            _a4Field(ttf, ttfBold, 'Time', data.time),
-                            _a4Field(
-                                ttf, ttfBold, 'Purchase Center', data.location),
-                            _a4Field(ttf, ttfBold, 'Commodity',
-                                '$_commodity (Gov. MSP : Rs. ${_mspRate.toStringAsFixed(0)} / Qtl)'),
-                            _a4Field(
-                                ttf, ttfBold, 'Vehicle No.', data.vehicleNo),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                pw.SizedBox(height: 6),
-                pw.Row(
-                  crossAxisAlignment: pw.CrossAxisAlignment.start,
-                  children: [
-                    pw.Expanded(
-                      child: _boxedSection(
-                        title: 'WEIGHT SUMMARY',
-                        icon: 'WT',
-                        ttf: ttf,
-                        ttfBold: ttfBold,
-                        child: pw.Column(
-                          children: [
-                            _a4ValueRow(ttf, ttfBold, 'Gross Weight',
-                                '${data.grossKg} KG'),
-                            _a4ValueRow(ttf, ttfBold, 'Bag Weight (Deduction)',
-                                '${data.bagDeductionKg} KG'),
-                            _dashLine(),
-                            _a4ValueRow(
-                                ttf, ttfBold, 'Net Weight', '${data.netKg} KG',
-                                highlight: true),
-                            pw.SizedBox(height: 5),
-                            _pill(ttfBold,
-                                'Actual Purchase Rate  :  Rs. ${data.actualRate} / Qtl'),
-                          ],
-                        ),
-                      ),
-                    ),
-                    pw.SizedBox(width: 6),
-                    pw.Expanded(
-                      child: _boxedSection(
-                        title: 'BILL SUMMARY',
-                        icon: 'BILL',
-                        ttf: ttf,
-                        ttfBold: ttfBold,
-                        child: pw.Column(
-                          children: [
-                            _miniTable(
-                              ttf,
-                              ttfBold,
-                              headers: ['Particulars', 'Quantity (Bags)'],
-                              rows: data.bagRows,
-                            ),
-                            pw.SizedBox(height: 5),
-                            _pill(ttfBold,
-                                'Payable Amount (Rs.)   ${data.payableAmount}'),
-                          ],
-                        ),
-                      ),
-                    ),
-                    pw.SizedBox(width: 6),
-                    pw.Expanded(
-                      child: _boxedSection(
-                        title: 'QUALITY / LAB ANALYSIS',
-                        icon: 'QC',
-                        ttf: ttf,
-                        ttfBold: ttfBold,
-                        child: pw.Column(
-                          children: [
-                            _miniTable(
-                              ttf,
-                              ttfBold,
-                              headers: [
-                                'Parameter',
-                                'Allowed',
-                                'Actual',
-                                'Deduction'
-                              ],
-                              rows: data.qualityRows,
-                              widths: const {
-                                0: pw.FlexColumnWidth(1.45),
-                                1: pw.FlexColumnWidth(.85),
-                                2: pw.FlexColumnWidth(.85),
-                                3: pw.FlexColumnWidth(.95),
-                              },
-                            ),
-                            _a4ValueRow(ttf, ttfBold, 'Deduction Value (Total)',
-                                data.deductionTotal,
-                                highlight: true),
-                          ],
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-                pw.SizedBox(height: 6),
-                _boxedSection(
-                  title: 'BANK DETAILS',
-                  icon: 'BANK',
-                  ttf: ttf,
-                  ttfBold: ttfBold,
-                  child: pw.Row(
+          return pw.DefaultTextStyle(
+            style: pw.TextStyle(font: ttf, fontSize: 7.4),
+            child: pw.Container(
+              decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.black, width: 0.8),
+              ),
+              padding: const pw.EdgeInsets.fromLTRB(7, 5, 7, 4),
+              child: pw.Column(
+                crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+                children: [
+                  _a4ReceiptHeader(ttf, ttfBold, data),
+                  _a4Rule(),
+                  pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
-                      pw.Expanded(
-                        child: pw.Column(
-                          children: [
-                            _a4Field(ttf, ttfBold, 'Bank Name', data.bankName),
-                            _a4Field(
-                                ttf, ttfBold, 'Account Number', data.accountNo),
-                          ],
-                        ),
-                      ),
-                      pw.SizedBox(width: 12),
-                      pw.Expanded(
-                        child: pw.Column(
-                          children: [
-                            _a4Field(ttf, ttfBold, 'Account Holder',
-                                data.holderName),
-                            _a4Field(ttf, ttfBold, 'IFSC Code', data.ifsc),
-                          ],
-                        ),
-                      ),
+                      pw.Expanded(child: _a4FarmerBlock(ttf, ttfBold, data)),
+                      pw.Container(width: .6, height: 146, color: PdfColors.black),
+                      pw.Expanded(child: _a4PurchaseBlock(ttf, ttfBold, data)),
                     ],
                   ),
-                ),
-                pw.SizedBox(height: 4),
-                _declarationSection(ttf, ttfBold, data, customDisclaimer: disclaimerText),
-                pw.SizedBox(height: 4),
-                _footerBand(ttf, ttfBold, data),
-                pw.SizedBox(height: 3),
-                _a4BottomBagDetails(ttf, ttfBold, data),
-              ],
+                  _a4Rule(),
+                  pw.Row(
+                    crossAxisAlignment: pw.CrossAxisAlignment.start,
+                    children: [
+                      pw.Expanded(child: _a4WeightBlock(ttf, ttfBold, data)),
+                      pw.Container(width: .6, height: 114, color: PdfColors.black),
+                      pw.Expanded(child: _a4BagBlock(ttf, ttfBold, data)),
+                      pw.Container(width: .6, height: 114, color: PdfColors.black),
+                      pw.Expanded(child: _a4QualityBlock(ttf, ttfBold, data)),
+                    ],
+                  ),
+                  _a4Rule(),
+                  _a4BankBlock(ttf, ttfBold, data),
+                  _a4Rule(),
+                  _declarationSection(
+                    ttf,
+                    ttfBold,
+                    data,
+                    customDisclaimer: disclaimerText,
+                  ),
+                  pw.SizedBox(height: 2),
+                  _a4CutLine(ttf),
+                  _a4TearOffSlip(ttf, ttfBold, data),
+                  _a4Rule(),
+                  _a4ReceiptFooter(ttf, ttfBold),
+                ],
+              ),
             ),
           );
         },
@@ -304,67 +150,60 @@ class PdfInvoiceService {
       pw.Page(
         pageFormat: const PdfPageFormat(
           58 * PdfPageFormat.mm,
-          430 * PdfPageFormat.mm,
+          760 * PdfPageFormat.mm,
           marginAll: 3 * PdfPageFormat.mm,
         ),
         build: (context) {
           return pw.DefaultTextStyle(
-            style: pw.TextStyle(font: ttf, fontSize: 7.2),
+            style: pw.TextStyle(font: ttf, fontSize: 6.4),
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.stretch,
               children: [
-                _thermalCenter(ttfBold, _companyName, size: 8.5),
-                _thermalCenter(ttfBold, 'FARMER PURCHASE RECEIPT', size: 8),
+                _thermalCenter(
+                    ttfBold, '${data.location} PURCHASE POINT'.toUpperCase(),
+                    size: 7.4),
+                pw.SizedBox(height: 1),
+                _thermalCenter(ttfBold, _companyName, size: 8.2),
+                _thermalCenter(ttf, 'Ph: ${_helpline.replaceAll('+91 ', '')}',
+                    size: 6.5),
                 _thermalLine(),
+                _thermalRow(ttf, ttfBold, 'Invoice No', data.kpNo),
+                _thermalRow(ttf, ttfBold, 'Date', data.date),
+                _thermalRow(ttf, ttfBold, 'Purchase by', ''),
                 _thermalRow(ttf, ttfBold, 'Farmer Name', data.farmerName),
                 _thermalRow(ttf, ttfBold, 'Mobile No', data.mobile),
                 _thermalRow(ttf, ttfBold, 'Village', data.village),
-                _thermalRow(ttf, ttfBold, 'Taluka', data.taluka),
-                _thermalRow(ttf, ttfBold, 'District', data.district),
                 _thermalLine(),
-                _thermalRow(ttf, ttfBold, 'KP No', data.kpNo),
-                _thermalRow(ttf, ttfBold, 'Date', data.date),
-                _thermalRow(ttf, ttfBold, 'Time', data.time),
-                _thermalRow(ttf, ttfBold, 'Purchase Center', data.location),
-                _thermalRow(ttf, ttfBold, 'Commodity', _commodity),
-                _thermalRow(ttf, ttfBold, 'Gov MSP',
-                    'Rs ${_mspRate.toStringAsFixed(0)} / Qtl'),
-                pw.SizedBox(height: 2),
-                _thermalBox(ttfBold,
-                    "Today's Purchase Rate : Rs ${data.actualRate} / Qtl"),
+                _thermalAmountBlock(ttf, ttfBold, data),
                 _thermalLine(),
-                _thermalCenter(ttfBold, 'WEIGHT DETAILS'),
-                _thermalRow(ttf, ttfBold, 'Gross Weight', '${data.grossKg} KG'),
+                _thermalCenter(ttfBold, 'WEIGHT DETAILS', size: 7),
+                _thermalRow(ttf, ttfBold, 'Gross Weight', '${data.grossKg} KG',
+                    labelWidth: 75),
                 _thermalRow(
-                    ttf, ttfBold, 'Bag Deduction', '${data.bagDeductionKg} KG'),
+                    ttf, ttfBold, 'Bag Deduction', '${data.bagDeductionKg} KG',
+                    labelWidth: 75),
                 _thermalLine(),
                 _thermalRow(ttf, ttfBold, 'Net Weight', '${data.netKg} KG',
-                    boldValue: true),
-                _thermalRow(
-                    ttf, ttfBold, 'Actual Rate', 'Rs ${data.actualRate} / Qtl'),
-                _thermalLine(),
-                _thermalCenter(ttfBold, 'QUALITY DETAILS'),
-                ...data.thermalQualityRows.map(
-                  (row) => _thermalRow(ttf, ttfBold, row[0], row[1]),
-                ),
-                _thermalLine(),
-                _thermalRow(ttf, ttfBold, 'Deduction Total',
-                    'Rs ${data.deductionTotal}'),
+                    boldValue: true, labelWidth: 75),
                 _thermalLine(),
                 _thermalCenter(ttfBold, 'BAG DETAILS'),
-                ...data.thermalBagRows.map(
-                  (row) => _thermalRow(ttf, ttfBold, row[0], row[1]),
-                ),
+                _thermalBagHeader(ttfBold),
+                ...data.bagRows.skip(1).map(
+                      (row) => _thermalBagRow(
+                        ttf,
+                        row[0],
+                        row.length > 1 ? row[1] : '',
+                      ),
+                    ),
+                _thermalDashText(),
+                _thermalBagRow(ttfBold, 'TOTAL BAGS', data.totalBags,
+                    boldValue: true),
                 _thermalLine(),
-                _thermalCenter(ttfBold, 'PAYMENT DETAILS'),
-                _thermalBox(
-                    ttfBold, 'Payable Amount : Rs ${data.payableAmount}'),
-                _thermalLine(),
-                _thermalCenter(ttfBold, 'BANK DETAILS'),
-                _thermalRow(ttf, ttfBold, 'Bank Name', data.bankName),
-                _thermalRow(ttf, ttfBold, 'A/C Holder', data.holderName),
-                _thermalRow(ttf, ttfBold, 'A/C Number', data.accountNo),
-                _thermalRow(ttf, ttfBold, 'IFSC Code', data.ifsc),
+                _thermalCenter(ttfBold, 'QUALITY DETAILS (QC)', size: 7),
+                _thermalQualityHeader(ttfBold, detailed: true),
+                ...data.qualityRows.map((row) => _thermalQualityRow(ttf, row)),
+                _thermalRow(ttf, ttfBold, 'Total Deduct', data.deductionTotal,
+                    boldValue: true, labelWidth: 82),
                 _thermalLine(),
                 _thermalCenter(ttfBold, 'DECLARATION'),
                 pw.Text(
@@ -372,24 +211,25 @@ class PdfInvoiceService {
                       ? 'I, ${data.farmerName}, ${disclaimerText.trim()}'
                       : 'I confirm that the supplied crop belongs to me and payment details mentioned above are accepted by me.',
                   textAlign: pw.TextAlign.left,
+                  style: pw.TextStyle(font: ttfBold, fontSize: 6),
                 ),
                 pw.SizedBox(height: 10),
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
-                    _thermalSign(ttf, 'Farmer Signature'),
-                    _thermalSign(ttf, 'Lab / Godown'),
+                    _thermalSign(ttf, 'Farmer Sign'),
+                    _thermalSign(ttf, 'Lab Chemist Sign'),
                   ],
                 ),
                 _thermalLine(),
-                _thermalCenter(ttfBold, 'Farmer Helpline : $_helpline'),
-                _thermalCenter(ttfBold, 'Vendor No : ${data.vendorNo}'),
+                _thermalCenter(ttfBold, 'Generated / Billing Time',
+                    size: 6.2),
+                _thermalCenter(ttf, data.printedOn, size: 6),
+                _thermalCenter(ttfBold, 'KISAN HELPLINE : $_helpline',
+                    size: 6.3),
                 _thermalLine(),
-                _thermalCenter(ttf, 'System Generated Receipt'),
-                _thermalCenter(ttfBold, 'Thank You! Visit Again.'),
-                _thermalLine(),
-                _thermalBottomBagDetails(ttf, ttfBold, data),
-                _thermalLine(),
+                _thermalCenter(ttfBold, 'SAMRUDDHA SHETKARI CHALWAL',
+                    size: 7.2),
               ],
             ),
           );
@@ -398,6 +238,525 @@ class PdfInvoiceService {
     );
 
     return pdf.save();
+  }
+
+  static pw.Widget _a4ReceiptHeader(
+      pw.Font ttf, pw.Font ttfBold, _BillPrintData data) {
+    return pw.Column(
+      children: [
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.SizedBox(
+              width: 92,
+              child: pw.Column(
+                children: [
+                  pw.Container(
+                    width: 58,
+                    height: 42,
+                    alignment: pw.Alignment.center,
+                    decoration: pw.BoxDecoration(
+                      border: pw.Border.all(color: PdfColors.black, width: .8),
+                    ),
+                    child: pw.Text(
+                      _companyShortName,
+                      style: pw.TextStyle(font: ttfBold, fontSize: 18),
+                    ),
+                  ),
+                  pw.SizedBox(height: 2),
+                  pw.Text(
+                    'TULJA BHAVANI\nSOYA PVT. LTD.',
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(font: ttfBold, fontSize: 6.4),
+                  ),
+                ],
+              ),
+            ),
+            pw.Expanded(
+              child: pw.Column(
+                children: [
+                  pw.Text(
+                    _companyName,
+                    textAlign: pw.TextAlign.center,
+                    style: pw.TextStyle(font: ttfBold, fontSize: 23),
+                  ),
+                  pw.SizedBox(height: 2),
+                  pw.Text(
+                    'FARMER PURCHASE RECEIPT',
+                    style: pw.TextStyle(font: ttfBold, fontSize: 14),
+                  ),
+                  pw.Container(width: 182, height: .7, color: PdfColors.black),
+                ],
+              ),
+            ),
+          ],
+        ),
+        pw.SizedBox(height: 5),
+        pw.Row(
+          crossAxisAlignment: pw.CrossAxisAlignment.start,
+          children: [
+            pw.Expanded(
+              child: pw.Column(
+                children: [
+                  _a4InlineField(ttf, ttfBold, 'Invoice No.', data.kpNo,
+                      labelWidth: 74),
+                  _a4InlineField(ttf, ttfBold, 'Date', data.date,
+                      labelWidth: 74),
+                  _a4InlineField(ttf, ttfBold, 'Time', data.time,
+                      labelWidth: 74),
+                ],
+              ),
+            ),
+            pw.SizedBox(width: 28),
+            pw.Expanded(
+              child: pw.Column(
+                children: [
+                  _a4InlineField(ttf, ttfBold, 'Officer Name', '',
+                      labelWidth: 102),
+                  _a4InlineField(ttf, ttfBold, 'Officer Mobile No.', '',
+                      labelWidth: 102),
+                  _a4InlineField(ttf, ttfBold, 'Center Name', data.location,
+                      labelWidth: 102),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }
+
+  static pw.Widget _a4FarmerBlock(
+      pw.Font ttf, pw.Font ttfBold, _BillPrintData data) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.fromLTRB(6, 4, 18, 3),
+      child: pw.Column(
+        children: [
+          _a4SectionTitle(ttfBold, 'FARMER INFORMATION'),
+          pw.SizedBox(height: 8),
+          _a4InlineField(ttf, ttfBold, 'Aadhaar No.', data.aadhaar),
+          _a4InlineField(ttf, ttfBold, 'Farmer Name', data.farmerName),
+          _a4InlineField(ttf, ttfBold, 'Farmer ID', data.farmerId),
+          _a4InlineField(ttf, ttfBold, 'Mobile No.', data.mobile),
+          _a4InlineField(ttf, ttfBold, 'Village', data.village),
+          _a4InlineField(ttf, ttfBold, 'Taluka', data.taluka),
+          _a4InlineField(ttf, ttfBold, 'District', data.district),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _a4PurchaseBlock(
+      pw.Font ttf, pw.Font ttfBold, _BillPrintData data) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.fromLTRB(18, 4, 6, 3),
+      child: pw.Column(
+        children: [
+          _a4SectionTitle(ttfBold, 'PURCHASE INFORMATION'),
+          pw.SizedBox(height: 8),
+          pw.Container(
+            padding: const pw.EdgeInsets.symmetric(horizontal: 18, vertical: 6),
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.black, width: .8),
+            ),
+            child: pw.Row(
+              mainAxisAlignment: pw.MainAxisAlignment.center,
+              children: [
+                pw.Text("Today's Purchase Rate",
+                    style: pw.TextStyle(font: ttfBold, fontSize: 8.5)),
+                pw.Text('  :  ', style: pw.TextStyle(font: ttfBold, fontSize: 8.5)),
+                pw.Text('Rs. ${data.actualRate} / Qtl',
+                    style: pw.TextStyle(font: ttfBold, fontSize: 8.5)),
+              ],
+            ),
+          ),
+          pw.SizedBox(height: 12),
+          _a4InlineField(ttf, ttfBold, 'Central Sr. No.', data.grnNo,
+              labelWidth: 108),
+          _a4InlineField(ttf, ttfBold, 'Purchase Point Sr. No.', data.kpNo,
+              labelWidth: 108),
+          _a4InlineField(ttf, ttfBold, 'Commodity', _commodity,
+              labelWidth: 108),
+          _a4InlineField(ttf, ttfBold, 'Vehicle No.', data.vehicleNo,
+              labelWidth: 108),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _a4WeightBlock(
+      pw.Font ttf, pw.Font ttfBold, _BillPrintData data) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.fromLTRB(6, 4, 9, 3),
+      child: pw.Column(
+        children: [
+          _a4SectionTitle(ttfBold, 'WEIGHT SUMMARY'),
+          pw.SizedBox(height: 8),
+          _a4AmountRow(ttf, ttfBold, 'Gross Weight', '${data.grossKg} KG'),
+          _a4AmountRow(
+              ttf, ttfBold, 'Bag Weight (Deduction)', '${data.bagDeductionKg} KG'),
+          _a4Dash(),
+          _a4AmountRow(ttf, ttfBold, 'Net Weight', '${data.netKg} KG',
+              bold: true),
+          _a4Dash(),
+          _a4AmountRow(ttf, ttfBold, 'Final Purchase Rate',
+              'Rs. ${data.actualRate} / Qtl'),
+          _a4Dash(),
+          _a4AmountRow(ttf, ttfBold, 'PAYABLE AMOUNT',
+              'Rs. ${data.payableAmount}',
+              bold: true, fontSize: 9.3),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _a4BagBlock(
+      pw.Font ttf, pw.Font ttfBold, _BillPrintData data) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.fromLTRB(9, 4, 9, 3),
+      child: pw.Column(
+        children: [
+          _a4SectionTitle(ttfBold, 'BAG DETAILS'),
+          pw.SizedBox(height: 7),
+          _a4TwoColumnHeader(ttfBold, 'Particulars', 'Quantity (Bags)'),
+          _a4Dash(),
+          ...data.bagRows.map(
+            (row) => _a4AmountRow(
+              ttf,
+              ttfBold,
+              row.first,
+              row.length > 1 ? row[1] : '',
+              bold: row.first.toLowerCase().contains('total'),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _a4QualityBlock(
+      pw.Font ttf, pw.Font ttfBold, _BillPrintData data) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.fromLTRB(9, 4, 6, 3),
+      child: pw.Column(
+        children: [
+          _a4SectionTitle(ttfBold, 'QUALITY / LAB ANALYSIS'),
+          pw.SizedBox(height: 7),
+          _a4QualityRow(ttfBold, ['Parameter', 'Allowed', 'Actual', 'Deduction'],
+              isHeader: true),
+          _a4Dash(),
+          ...data.qualityRows.map((row) => _a4QualityRow(ttf, row)),
+          _a4Dash(),
+          _a4AmountRow(ttf, ttfBold, 'Total Deduction', data.deductionTotal,
+              bold: true),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _a4BankBlock(
+      pw.Font ttf, pw.Font ttfBold, _BillPrintData data) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.fromLTRB(6, 4, 6, 2),
+      child: pw.Column(
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
+        children: [
+          pw.Text('BANK DETAILS', style: pw.TextStyle(font: ttfBold, fontSize: 9)),
+          pw.SizedBox(height: 3),
+          pw.Row(
+            children: [
+              pw.Expanded(
+                child: pw.Column(
+                  children: [
+                    _a4InlineField(ttf, ttfBold, 'Bank Name', data.bankName,
+                        labelWidth: 88),
+                    _a4InlineField(
+                        ttf, ttfBold, 'Account Number', data.accountNo,
+                        labelWidth: 88),
+                  ],
+                ),
+              ),
+              pw.SizedBox(width: 28),
+              pw.Expanded(
+                child: pw.Column(
+                  children: [
+                    _a4InlineField(
+                        ttf, ttfBold, 'Account Holder', data.holderName,
+                        labelWidth: 100),
+                    _a4InlineField(ttf, ttfBold, 'IFSC Code & Branch', data.ifsc,
+                        labelWidth: 100),
+                  ],
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _a4TearOffSlip(
+      pw.Font ttf, pw.Font ttfBold, _BillPrintData data) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.fromLTRB(24, 4, 24, 3),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.Expanded(
+            child: pw.Column(
+              children: [
+                _a4InlineField(ttf, ttfBold, 'Farmer Name', data.farmerName,
+                    labelWidth: 96),
+                _a4InlineField(ttf, ttfBold, 'Vehicle No.', data.vehicleNo,
+                    labelWidth: 96),
+                _a4InlineField(ttf, ttfBold, 'Net Weight', '${data.netKg} KG',
+                    labelWidth: 96),
+                _a4InlineField(
+                    ttf, ttfBold, 'Purchase Rate', 'Rs. ${data.actualRate} / Qtl',
+                    labelWidth: 96),
+                _a4InlineField(
+                    ttf, ttfBold, 'Total Amount', 'Rs. ${data.payableAmount}',
+                    labelWidth: 96),
+              ],
+            ),
+          ),
+          pw.Container(
+            margin: const pw.EdgeInsets.symmetric(horizontal: 20),
+            width: .7,
+            height: 58,
+            color: PdfColors.black,
+          ),
+          pw.Expanded(
+            child: pw.Column(
+              children: [
+                _a4InlineField(ttf, ttfBold, 'Purchase Point Sr. No.', data.kpNo,
+                    labelWidth: 120),
+                _a4InlineField(ttf, ttfBold, 'Date', data.date,
+                    labelWidth: 120),
+                _a4InlineField(ttf, ttfBold, 'Total Bags', data.totalBags,
+                    labelWidth: 120),
+                _a4InlineField(
+                    ttf, ttfBold, 'Kaltani Bags (50 Kg)', data.kaltaniBags,
+                    labelWidth: 120),
+                _a4InlineField(
+                    ttf, ttfBold, 'PP Bags (150 Gms)', data.ppBags,
+                    labelWidth: 120),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _a4ReceiptFooter(pw.Font ttf, pw.Font ttfBold) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.fromLTRB(20, 4, 20, 0),
+      child: pw.Row(
+        children: [
+          pw.Container(
+            width: 28,
+            height: 28,
+            alignment: pw.Alignment.center,
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.black, width: 1.4),
+              shape: pw.BoxShape.circle,
+            ),
+            child: pw.Text('A', style: pw.TextStyle(font: ttfBold, fontSize: 13)),
+          ),
+          pw.SizedBox(width: 12),
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('REGISTERED ADDRESS',
+                    style: pw.TextStyle(font: ttfBold, fontSize: 8)),
+                pw.Text(
+                  'At Post - Bhandi Bk.\nTaluka - Murud,\nDist. - Latur,\nMaharashtra - 413512',
+                  style: pw.TextStyle(font: ttfBold, fontSize: 6.6),
+                ),
+              ],
+            ),
+          ),
+          pw.Container(width: .6, height: 45, color: PdfColors.black),
+          pw.SizedBox(width: 26),
+          pw.Container(
+            width: 28,
+            height: 28,
+            alignment: pw.Alignment.center,
+            decoration: pw.BoxDecoration(
+              border: pw.Border.all(color: PdfColors.black, width: 1.4),
+              shape: pw.BoxShape.circle,
+            ),
+            child: pw.Text('T', style: pw.TextStyle(font: ttfBold, fontSize: 13)),
+          ),
+          pw.SizedBox(width: 12),
+          pw.Expanded(
+            child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                pw.Text('FARMER HELPLINE',
+                    style: pw.TextStyle(font: ttfBold, fontSize: 8.5)),
+                pw.Text(_helpline,
+                    style: pw.TextStyle(font: ttfBold, fontSize: 13)),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _a4InlineField(
+    pw.Font ttf,
+    pw.Font ttfBold,
+    String label,
+    String value, {
+    double labelWidth = 86,
+    double fontSize = 8.1,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 2.6),
+      child: pw.Row(
+        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        children: [
+          pw.SizedBox(
+            width: labelWidth,
+            child: pw.Text(label,
+                style: pw.TextStyle(font: ttfBold, fontSize: fontSize)),
+          ),
+          pw.Text(':', style: pw.TextStyle(font: ttfBold, fontSize: fontSize)),
+          pw.SizedBox(width: 9),
+          pw.Expanded(
+            child: pw.Container(
+              height: 12,
+              decoration: const pw.BoxDecoration(
+                border: pw.Border(
+                  bottom: pw.BorderSide(color: PdfColors.black, width: .45),
+                ),
+              ),
+              child: value.trim().isEmpty
+                  ? pw.SizedBox()
+                  : pw.Text(
+                      value,
+                      maxLines: 1,
+                      overflow: pw.TextOverflow.clip,
+                      style: pw.TextStyle(font: ttfBold, fontSize: fontSize),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _a4AmountRow(
+    pw.Font ttf,
+    pw.Font ttfBold,
+    String label,
+    String value, {
+    bool bold = false,
+    double fontSize = 8.1,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 2.3),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+            child: pw.Text(label,
+                style: pw.TextStyle(
+                    font: bold ? ttfBold : ttf, fontSize: fontSize)),
+          ),
+          pw.Text(':  ',
+              style: pw.TextStyle(font: ttfBold, fontSize: fontSize)),
+          pw.Text(value,
+              style: pw.TextStyle(font: ttfBold, fontSize: fontSize)),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _a4TwoColumnHeader(
+      pw.Font ttfBold, String left, String right) {
+    return pw.Row(
+      children: [
+        pw.Expanded(
+          child: pw.Text(left, style: pw.TextStyle(font: ttfBold, fontSize: 7)),
+        ),
+        pw.Text(right, style: pw.TextStyle(font: ttfBold, fontSize: 7)),
+      ],
+    );
+  }
+
+  static pw.Widget _a4QualityRow(pw.Font font, List<String> cells,
+      {bool isHeader = false}) {
+    final values = List<String>.generate(
+      4,
+      (index) => index < cells.length ? cells[index] : '',
+    );
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 2.1),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+            flex: 5,
+            child: pw.Text(values[0],
+                style: pw.TextStyle(font: font, fontSize: isHeader ? 6.7 : 7.1)),
+          ),
+          for (final value in values.skip(1))
+            pw.Expanded(
+              flex: 3,
+              child: pw.Text(
+                value,
+                textAlign: pw.TextAlign.center,
+                style:
+                    pw.TextStyle(font: font, fontSize: isHeader ? 6.7 : 7.1),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _a4SectionTitle(pw.Font ttfBold, String title) {
+    return pw.Text(
+      title,
+      textAlign: pw.TextAlign.center,
+      style: pw.TextStyle(font: ttfBold, fontSize: 9.2),
+    );
+  }
+
+  static pw.Widget _a4Rule() {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 4),
+      child: pw.Container(height: .8, color: PdfColors.black),
+    );
+  }
+
+  static pw.Widget _a4Dash() {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 2.8),
+      child: pw.Text(
+        '---------------------------------------------',
+        style: const pw.TextStyle(fontSize: 5.8),
+      ),
+    );
+  }
+
+  static pw.Widget _a4CutLine(pw.Font ttf) {
+    return pw.Row(
+      children: [
+        pw.Text('--X', style: pw.TextStyle(font: ttf, fontSize: 10)),
+        pw.Expanded(
+          child: pw.Text(
+            '---------------------------------------------------------------',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: ttf, fontSize: 8),
+          ),
+        ),
+        pw.Text('X--', style: pw.TextStyle(font: ttf, fontSize: 10)),
+      ],
+    );
   }
 
   static pw.Widget _a4Header(pw.Font ttf, pw.Font ttfBold) {
@@ -740,31 +1099,39 @@ class PdfInvoiceService {
         ? 'I, ${data.farmerName}, ${customDisclaimer.trim()}'
         : 'I, ${data.farmerName}, confirm that the supplied crop belongs to me and the payment details mentioned above are accepted by me.';
 
-    return _boxedSection(
-      title: 'DECLARATION',
-      icon: 'DOC',
-      ttf: ttf,
-      ttfBold: ttfBold,
+    return pw.Padding(
+      padding: const pw.EdgeInsets.fromLTRB(6, 0, 6, 0),
       child: pw.Column(
-        crossAxisAlignment: pw.CrossAxisAlignment.start,
+        crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
           pw.Text(
+            'DECLARATION',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: ttfBold, fontSize: 9.8),
+          ),
+          pw.SizedBox(height: 3),
+          pw.Text(
             declarationText,
-            style: pw.TextStyle(font: ttf, fontSize: 8),
+            style: pw.TextStyle(font: ttfBold, fontSize: 7.7),
           ),
           pw.SizedBox(height: 4),
           pw.Text(
-            'Payable Amount: Rs. ${data.payableAmount}/-  (${_numberToWords(data.payableRounded)} ONLY)',
-            style: pw.TextStyle(font: ttfBold, fontSize: 8),
+            'Amount received in words: Rs. ${_numberToWords(data.payableRounded)} ONLY',
+            style: pw.TextStyle(font: ttfBold, fontSize: 7.7),
           ),
-          pw.SizedBox(height: 18),
+          pw.SizedBox(height: 13),
           pw.Row(
-            mainAxisAlignment: pw.MainAxisAlignment.end,
+            mainAxisAlignment: pw.MainAxisAlignment.spaceAround,
             children: [
               _signature(ttfBold, 'Farmer Signature'),
-              pw.SizedBox(width: 45),
               _signature(ttfBold, 'Lab Chemist / Godown Incharge'),
             ],
+          ),
+          pw.SizedBox(height: 4),
+          pw.Text(
+            'This is a system generated document and does not require signature.',
+            textAlign: pw.TextAlign.center,
+            style: pw.TextStyle(font: ttfBold, fontSize: 6.8),
           ),
         ],
       ),
@@ -857,12 +1224,33 @@ class PdfInvoiceService {
     );
   }
 
+  static pw.Widget _thermalAmountBlock(
+      pw.Font ttf, pw.Font ttfBold, _BillPrintData data) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+      child: pw.Column(
+        children: [
+          _thermalRow(ttf, ttfBold, 'Commodity', _commodity, labelWidth: 62),
+          _thermalRow(ttf, ttfBold, "Today's Rate",
+              'Rs ${data.actualRate} / Qtl',
+              labelWidth: 62),
+          _thermalRow(ttf, ttfBold, 'Purchase Rate',
+              'Rs ${data.actualRate} / Qtl',
+              labelWidth: 62),
+          pw.SizedBox(height: 3),
+          _thermalRow(ttf, ttfBold, 'AMOUNT', 'Rs ${data.payableAmount}',
+              boldValue: true, labelWidth: 62, fontSize: 7.8),
+        ],
+      ),
+    );
+  }
+
   static pw.Widget _thermalLine() {
     return pw.Padding(
-      padding: const pw.EdgeInsets.symmetric(vertical: 2),
-      child: pw.Text('--------------------------------',
+      padding: const pw.EdgeInsets.symmetric(vertical: 1.6),
+      child: pw.Text('------------------------------------',
           textAlign: pw.TextAlign.center,
-          style: const pw.TextStyle(fontSize: 7)),
+          style: const pw.TextStyle(fontSize: 6)),
     );
   }
 
@@ -872,36 +1260,132 @@ class PdfInvoiceService {
     String label,
     String value, {
     bool boldValue = false,
+    double labelWidth = 58,
+    double fontSize = 6.2,
   }) {
     return pw.Row(
       crossAxisAlignment: pw.CrossAxisAlignment.start,
       children: [
         pw.SizedBox(
-          width: 55,
+          width: labelWidth,
           child:
-              pw.Text(label, style: pw.TextStyle(font: ttfBold, fontSize: 7)),
+              pw.Text(label, style: pw.TextStyle(font: ttfBold, fontSize: fontSize)),
         ),
-        pw.Text(': ', style: pw.TextStyle(font: ttf, fontSize: 7)),
+        pw.Text(': ', style: pw.TextStyle(font: ttf, fontSize: fontSize)),
         pw.Expanded(
           child: pw.Text(
             value,
-            style: pw.TextStyle(font: boldValue ? ttfBold : ttf, fontSize: 7),
+            style:
+                pw.TextStyle(font: boldValue ? ttfBold : ttf, fontSize: fontSize),
           ),
         ),
       ],
     );
   }
 
+  static pw.Widget _thermalBagHeader(pw.Font ttfBold) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.only(top: 1, bottom: 1.5),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+            child: pw.Text('Bag Type',
+                style: pw.TextStyle(font: ttfBold, fontSize: 6.1)),
+          ),
+          pw.Text('No. of Bags',
+              style: pw.TextStyle(font: ttfBold, fontSize: 6.1)),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _thermalBagRow(
+    pw.Font font,
+    String label,
+    String value, {
+    bool boldValue = false,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 1.4),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+            child: pw.Text(label,
+                style: pw.TextStyle(font: font, fontSize: 6.1)),
+          ),
+          pw.Text(value,
+              style: pw.TextStyle(font: font, fontSize: 6.1)),
+        ],
+      ),
+    );
+  }
+
+  static pw.Widget _thermalDashText() {
+    return pw.Text(
+      '-----------------------------',
+      textAlign: pw.TextAlign.center,
+      style: const pw.TextStyle(fontSize: 5.8),
+    );
+  }
+
+  static pw.Widget _thermalQualityHeader(pw.Font ttfBold,
+      {bool detailed = false}) {
+    return _thermalQualityCells(
+      ttfBold,
+      detailed
+          ? const ['Parameter', 'Allowed', 'Actual', 'Deduct']
+          : const ['Parameter', 'Allow', 'Actual', 'Deduct'],
+      isHeader: true,
+    );
+  }
+
+  static pw.Widget _thermalQualityRow(pw.Font ttf, List<String> row) {
+    final cells = List<String>.generate(
+      4,
+      (index) => index < row.length ? row[index] : '',
+    );
+    return _thermalQualityCells(ttf, cells);
+  }
+
+  static pw.Widget _thermalQualityCells(
+    pw.Font font,
+    List<String> cells, {
+    bool isHeader = false,
+  }) {
+    return pw.Padding(
+      padding: const pw.EdgeInsets.symmetric(vertical: 1.4),
+      child: pw.Row(
+        children: [
+          pw.Expanded(
+            flex: 7,
+            child: pw.Text(cells[0],
+                style: pw.TextStyle(font: font, fontSize: isHeader ? 5.4 : 5.8)),
+          ),
+          for (final cell in cells.skip(1))
+            pw.Expanded(
+              flex: 4,
+              child: pw.Text(
+                cell,
+                textAlign: pw.TextAlign.center,
+                style:
+                    pw.TextStyle(font: font, fontSize: isHeader ? 5.4 : 5.8),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
   static pw.Widget _thermalBox(pw.Font ttfBold, String text) {
     return pw.Container(
-      padding: const pw.EdgeInsets.all(3),
+      padding: const pw.EdgeInsets.all(2.4),
       decoration: pw.BoxDecoration(
         border: pw.Border.all(color: PdfColors.black, width: .5),
         borderRadius: pw.BorderRadius.circular(2),
       ),
       child: pw.Text(text,
           textAlign: pw.TextAlign.center,
-          style: pw.TextStyle(font: ttfBold, fontSize: 7.2)),
+          style: pw.TextStyle(font: ttfBold, fontSize: 6.4)),
     );
   }
 
@@ -962,26 +1446,45 @@ class PdfInvoiceService {
     return pw.Column(
       children: [
         pw.Container(width: 52, height: .5, color: PdfColors.black),
-        pw.Text(label, style: pw.TextStyle(font: ttf, fontSize: 5.4)),
+        pw.Text(label, style: pw.TextStyle(font: ttf, fontSize: 5)),
       ],
     );
   }
 
   static Future<File> savePdfFile(String fileName, Uint8List byteList) async {
-    Directory? output;
+    final directories = <Directory>[];
+
     if (Platform.isAndroid) {
-      output = Directory('/storage/emulated/0/Download/SoyaApp');
-    } else {
-      output = await getApplicationDocumentsDirectory();
+      directories.add(Directory('/storage/emulated/0/Download/SoyaApp'));
+      final externalDir = await getExternalStorageDirectory();
+      if (externalDir != null) {
+        directories.add(Directory('${externalDir.path}/SoyaApp'));
+      }
     }
 
-    if (!await output.exists()) {
-      await output.create(recursive: true);
+    directories.add(await getApplicationDocumentsDirectory());
+
+    Object? lastError;
+    for (final output in directories) {
+      try {
+        if (!await output.exists()) {
+          await output.create(recursive: true);
+        }
+
+        final file = File('${output.path}${Platform.pathSeparator}$fileName');
+        await file.writeAsBytes(byteList);
+        return file;
+      } catch (e) {
+        lastError = e;
+        debugPrint('Failed to save PDF at ${output.path}: $e');
+      }
     }
 
-    final file = File('${output.path}/$fileName');
-    await file.writeAsBytes(byteList);
-    return file;
+    throw FileSystemException(
+      'Unable to save PDF',
+      fileName,
+      lastError is FileSystemException ? lastError.osError : null,
+    );
   }
 
   static String _numberToWords(int number) {

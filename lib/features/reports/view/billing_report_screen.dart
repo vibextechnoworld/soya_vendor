@@ -388,6 +388,13 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
 
   Future<void> _handlePdfAction(String billId, String action) async {
     final controller = context.read<BillingController>();
+    BillPrintFormat printFormat = BillPrintFormat.a4;
+
+    if (action == 'print') {
+      final selectedFormat = await _showPrintFormatSheet(context);
+      if (selectedFormat == null) return;
+      printFormat = selectedFormat;
+    }
 
     // Show loading
     ScaffoldMessenger.of(context).showSnackBar(
@@ -419,7 +426,10 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
       }
 
       // 2. Generate PDF bytes
-      final pdfBytes = await PdfInvoiceService.generateInvoice(bill);
+      final pdfBytes = await PdfInvoiceService.generateInvoice(
+        bill,
+        format: printFormat,
+      );
 
       // 3. Clear loading
       if (mounted) ScaffoldMessenger.of(context).hideCurrentSnackBar();
@@ -439,7 +449,8 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
         case 'print':
           await Printing.layoutPdf(
               onLayout: (format) async => pdfBytes,
-              name: "Bill_${bill.billNo ?? bill.id}");
+              name:
+                  "Bill_${bill.billNo ?? bill.id}_${printFormat == BillPrintFormat.thermal58 ? '58mm' : 'A4'}");
           break;
         case 'whatsapp':
           const platform = MethodChannel('com.soya_app.share/whatsapp');
@@ -496,6 +507,52 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
         ToastMessage.show(context, message: "Error: $e", isError: true);
       }
     }
+  }
+
+  Future<BillPrintFormat?> _showPrintFormatSheet(BuildContext context) {
+    return showModalBottomSheet<BillPrintFormat>(
+      context: context,
+      backgroundColor: whiteColor,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(18.r)),
+      ),
+      builder: (context) {
+        return SafeArea(
+          child: Padding(
+            padding: EdgeInsets.all(18.w),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  "Select Print Format",
+                  style: TextStyle(
+                    fontSize: 18.sp,
+                    fontWeight: FontWeight.bold,
+                    fontFamily: FontFamily.jost,
+                    color: blackColor,
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                ListTile(
+                  leading: const Icon(Icons.description_outlined),
+                  title: const Text("A4 Farmer Purchase Receipt"),
+                  subtitle: const Text("Full-size PDF layout"),
+                  onTap: () => Navigator.pop(context, BillPrintFormat.a4),
+                ),
+                ListTile(
+                  leading: const Icon(Icons.receipt_long_outlined),
+                  title: const Text("58mm Thermal Receipt"),
+                  subtitle: const Text("Compact bill printer layout"),
+                  onTap: () =>
+                      Navigator.pop(context, BillPrintFormat.thermal58),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
   }
 
   Widget _buildEmptyState() {

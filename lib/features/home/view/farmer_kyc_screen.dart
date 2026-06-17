@@ -2336,7 +2336,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            _buildFieldLabel('Land Location *'),
+            _buildFieldLabel('Land Location'),
             ChangeNotifierProvider.value(
               value: _landLocationProvider,
               child: Consumer<LocationProvider>(
@@ -2349,7 +2349,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildFieldLabel('District *'),
+                                _buildFieldLabel('District'),
                                 DropdownSearch<LocationModel>(
                                   popupProps: PopupProps.menu(
                                     showSearchBox: true,
@@ -2407,7 +2407,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                _buildFieldLabel('Taluka *'),
+_buildFieldLabel('Taluka'),
                                 DropdownSearch<LocationModel>(
                                   popupProps: PopupProps.menu(
                                     showSearchBox: true,
@@ -2464,7 +2464,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                         ],
                       ),
                       SizedBox(height: 12.h),
-                      _buildFieldLabel('Village *'),
+                      _buildFieldLabel('Village'),
                       DropdownSearch<LocationModel>(
                         popupProps: PopupProps.menu(
                           showSearchBox: true,
@@ -2517,7 +2517,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                       ),
                       if (lp.selectedVillage == LocationModel.other) ...[
                         SizedBox(height: 12.h),
-                        _buildFieldLabel('Enter Village Name *'),
+                        _buildFieldLabel('Enter Village Name'),
                         _buildTextField(
                           controller: _otherLandVillageController,
                           onChanged: (value) {
@@ -2534,7 +2534,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
               ),
             ),
             SizedBox(height: 12.h),
-            _buildFieldLabel('Land Type *'),
+            _buildFieldLabel('Land Type'),
             Container(
               padding: EdgeInsets.symmetric(horizontal: 12.w),
               decoration: BoxDecoration(
@@ -2575,7 +2575,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             ),
             if (_landTypeController.text == 'BLOOD_RELATION') ...[
               SizedBox(height: 12.h),
-              _buildFieldLabel('Land Owner Name *'),
+              _buildFieldLabel('Land Owner Name'),
               _buildTextField(
                 controller: _landOwnerNameController,
                 validator: (value) {
@@ -2588,7 +2588,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                 },
               ),
               SizedBox(height: 12.h),
-              _buildFieldLabel('Relation with Farmer *'),
+              _buildFieldLabel('Relation with Farmer'),
               _buildTextField(
                 controller: _landRelationTypeController,
                 validator: (value) {
@@ -2602,7 +2602,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
               ),
             ],
             SizedBox(height: 12.h),
-            _buildFieldLabel('Area (in Hectares) *'),
+            _buildFieldLabel('Area (in Hectares)'),
             _buildTextField(
               controller: _areaController,
               keyboardType:
@@ -2631,7 +2631,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
               ),
             ],
             SizedBox(height: 10.h),
-            _buildFieldLabel('Land Document Photo *'),
+            _buildFieldLabel('Land Document Photo'),
             _buildImageUpload(
               onTap: () => _pickImage('LAND'),
               selectedFile: _landDocument,
@@ -2708,7 +2708,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                 ),
               ),
               SizedBox(height: 12.h),
-              _buildFieldLabel('Land Owner Name *'),
+              _buildFieldLabel('Land Owner Name'),
               _buildTextField(
                 controller: _bloodRelationOwnerNameController,
                 validator: (value) {
@@ -2724,7 +2724,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                 },
               ),
               SizedBox(height: 12.h),
-              _buildFieldLabel('Relation with Farmer *'),
+              _buildFieldLabel('Relation with Farmer'),
               _buildTextField(
                 controller: _bloodRelationRelationTypeController,
                 validator: (value) {

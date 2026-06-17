@@ -1647,11 +1647,7 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                         title: "Print Bill",
                         subtitle: "Choose A4 or 58mm thermal",
                         onTap: () async {
-                          setState(() => isGenerating = true);
                           await _printPdf(context, controller);
-                          if (context.mounted) {
-                            setState(() => isGenerating = false);
-                          }
                         },
                       ),
                       SizedBox(height: 16.h),
