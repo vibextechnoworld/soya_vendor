@@ -20,7 +20,6 @@ import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
-import 'package:path/path.dart' as p;
 import 'package:soya_app/core/services/image_picker_service.dart';
 import 'package:dotted_border/dotted_border.dart';
 
@@ -1047,8 +1046,8 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                             horizontal: 12.w, vertical: 12.h),
                         border: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(6.r),
-                          borderSide: BorderSide(
-                              color: Colors.grey.withOpacity(0.4)),
+                          borderSide:
+                              BorderSide(color: Colors.grey.withOpacity(0.4)),
                         ),
                         focusedBorder: OutlineInputBorder(
                           borderRadius: BorderRadius.circular(6.r),
@@ -1061,7 +1060,9 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                     GestureDetector(
                       onTap: () async {
                         try {
-                          final files = await ImagePickerService.pickMultipleFiles(context);
+                          final files =
+                              await ImagePickerService.pickMultipleFiles(
+                                  context);
                           if (files != null && files.isNotEmpty) {
                             setDialogState(() {
                               selectedFiles.addAll(files);
@@ -1121,13 +1122,16 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                         child: ListView.separated(
                           shrinkWrap: true,
                           itemCount: selectedFiles.length,
-                          separatorBuilder: (context, index) => SizedBox(height: 6.h),
+                          separatorBuilder: (context, index) =>
+                              SizedBox(height: 6.h),
                           itemBuilder: (context, index) {
                             final file = selectedFiles[index];
-                            final name = file.path.split('/').last.split('\\').last;
+                            final name =
+                                file.path.split('/').last.split('\\').last;
                             return Row(
                               children: [
-                                Icon(Icons.insert_drive_file_outlined, color: primeryColor, size: 18.sp),
+                                Icon(Icons.insert_drive_file_outlined,
+                                    color: primeryColor, size: 18.sp),
                                 SizedBox(width: 8.w),
                                 Expanded(
                                   child: Text(
@@ -1147,7 +1151,8 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                                       selectedFiles.removeAt(index);
                                     });
                                   },
-                                  icon: Icon(Icons.cancel_outlined, color: Colors.red, size: 18.sp),
+                                  icon: Icon(Icons.cancel_outlined,
+                                      color: Colors.red, size: 18.sp),
                                   padding: EdgeInsets.zero,
                                   constraints: const BoxConstraints(),
                                 ),
@@ -1237,7 +1242,8 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                 if (!context.mounted) return;
 
                 final String remark = additionalData['remark'] ?? '';
-                final List<File> remarkFiles = List<File>.from(additionalData['remarkFiles'] ?? []);
+                final List<File> remarkFiles =
+                    List<File>.from(additionalData['remarkFiles'] ?? []);
 
                 // 1. Confirm Bill
                 final success = await controller.confirmDraftBill(

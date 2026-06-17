@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 import 'dart:convert';
 import 'package:flutter/foundation.dart';
 
@@ -53,9 +52,11 @@ class PdfInvoiceService {
   }) async {
     final disclaimer = await _fetchDisclaimer();
     if (format == BillPrintFormat.thermal58) {
-      return generateThermal58Invoice(bill, deductions: deductions, customDisclaimer: disclaimer);
+      return generateThermal58Invoice(bill,
+          deductions: deductions, customDisclaimer: disclaimer);
     }
-    return generateA4Invoice(bill, deductions: deductions, customDisclaimer: disclaimer);
+    return generateA4Invoice(bill,
+        deductions: deductions, customDisclaimer: disclaimer);
   }
 
   static Future<Uint8List> generateA4Invoice(
@@ -1094,8 +1095,10 @@ class PdfInvoiceService {
   }
 
   static pw.Widget _declarationSection(
-      pw.Font ttf, pw.Font ttfBold, _BillPrintData data, {String? customDisclaimer}) {
-    final String declarationText = (customDisclaimer != null && customDisclaimer.trim().isNotEmpty)
+      pw.Font ttf, pw.Font ttfBold, _BillPrintData data,
+      {String? customDisclaimer}) {
+    final String declarationText = (customDisclaimer != null &&
+            customDisclaimer.trim().isNotEmpty)
         ? 'I, ${data.farmerName}, ${customDisclaimer.trim()}'
         : 'I, ${data.farmerName}, confirm that the supplied crop belongs to me and the payment details mentioned above are accepted by me.';
 

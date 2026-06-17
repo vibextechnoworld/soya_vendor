@@ -109,7 +109,15 @@ class _BillingScreenState extends State<BillingScreen> {
       final day = date.day.toString().padLeft(2, '0');
       final month = date.month.toString().padLeft(2, '0');
       final year = date.year;
-      return '$day/$month/$year';
+
+      int hour = date.hour;
+      final minute = date.minute.toString().padLeft(2, '0');
+      final period = hour >= 12 ? 'PM' : 'AM';
+      hour = hour % 12;
+      if (hour == 0) hour = 12;
+      final hourStr = hour.toString().padLeft(2, '0');
+
+      return '$day/$month/$year $hourStr:$minute $period';
     } catch (e) {
       if (dateStr.length >= 10) {
         return dateStr.substring(0, 10);
@@ -496,56 +504,127 @@ class _BillingScreenState extends State<BillingScreen> {
                             ),
                             SizedBox(height: 16.h),
                             _buildFieldLabel('Selected Rate'),
-                            Container(
-                              height: 48.h,
-                              width: double.infinity,
-                              padding: EdgeInsets.symmetric(horizontal: 12.w),
-                              decoration: BoxDecoration(
-                                color: Colors.grey[100],
-                                borderRadius: BorderRadius.circular(6.r),
-                                border: Border.all(
-                                    color: Colors.grey.withOpacity(0.3),
-                                    width: 0.5),
-                              ),
-                              child: Align(
-                                alignment: Alignment.centerLeft,
-                                child: Text(
-                                  controller.selectedQuality == null
-                                      ? "No rate available for this date"
-                                      : (() {
-                                          final isMyRate = controller
-                                                  .selectedQuality!.quality ==
-                                              'my_rate';
-                                          final rawQuality = controller
-                                                  .selectedQuality!.quality ??
-                                              'Unknown';
-                                          final qualityName = isMyRate
-                                              ? controller.vendorName
-                                              : rawQuality
-                                                  .split('_')
-                                                  .map((word) => word.isNotEmpty
-                                                      ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
-                                                      : '')
-                                                  .join(' ');
-                                          final rateVal = controller
-                                                  .selectedQuality!.rate ??
-                                              0;
-                                          final dateSuffix = (controller
-                                                      .selectedQuality!
-                                                      .createdAt !=
-                                                  null)
-                                              ? ' (${_formatRateDate(controller.selectedQuality!.createdAt)})'
-                                              : '';
-                                          return "$qualityName - ₹$rateVal$dateSuffix";
-                                        })(),
-                                  style: TextStyle(
-                                    fontSize: 14.sp,
-                                    fontFamily: FontFamily.jost,
-                                    color: blackColor,
+                            (() {
+                              final List<QualityRateData> options = [];
+                              if (controller.todaysRates.isNotEmpty) {
+                                options.addAll(controller.todaysRates);
+                              }
+                              if (controller.vendorRate > 0) {
+                                final vendorRateOption = QualityRateData(
+                                  quality: 'my_rate',
+                                  rate: controller.vendorRate,
+                                );
+                                if (!options.any((o) =>
+                                    o.quality == 'my_rate' &&
+                                    o.rate == controller.vendorRate)) {
+                                  options.add(vendorRateOption);
+                                }
+                              }
+                              if (controller.selectedQuality != null &&
+                                  !options
+                                      .contains(controller.selectedQuality)) {
+                                options.insert(0, controller.selectedQuality!);
+                              }
+
+                              if (options.isEmpty) {
+                                return Container(
+                                  height: 48.h,
+                                  width: double.infinity,
+                                  padding:
+                                      EdgeInsets.symmetric(horizontal: 12.w),
+                                  decoration: BoxDecoration(
+                                    color: Colors.grey[100],
+                                    borderRadius: BorderRadius.circular(6.r),
+                                    border: Border.all(
+                                        color: Colors.grey.withOpacity(0.3),
+                                        width: 0.5),
+                                  ),
+                                  child: Align(
+                                    alignment: Alignment.centerLeft,
+                                    child: Text(
+                                      "No rate available for this date",
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        fontFamily: FontFamily.jost,
+                                        color: greyColor,
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+
+                              return Container(
+                                height: 48.h,
+                                width: double.infinity,
+                                padding: EdgeInsets.symmetric(horizontal: 12.w),
+                                decoration: BoxDecoration(
+                                  color: whiteColor,
+                                  borderRadius: BorderRadius.circular(6.r),
+                                  border: Border.all(
+                                      color: Colors.grey.withOpacity(0.4),
+                                      width: 0.5),
+                                ),
+                                child: DropdownButtonHideUnderline(
+                                  child: DropdownButton<QualityRateData>(
+                                    value: options.contains(
+                                            controller.selectedQuality)
+                                        ? controller.selectedQuality
+                                        : options.first,
+                                    isExpanded: true,
+                                    items: options.map((item) {
+                                      final isMyRate =
+                                          item.quality == 'my_rate';
+                                      final rawQuality =
+                                          item.quality ?? 'Unknown';
+                                      final qualityName = isMyRate
+                                          ? controller.vendorName
+                                          : rawQuality
+                                              .split('_')
+                                              .map((word) => word.isNotEmpty
+                                                  ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+                                                  : '')
+                                              .join(' ');
+                                      final rateVal = item.rate ?? 0;
+
+                                      return DropdownMenuItem<QualityRateData>(
+                                        value: item,
+                                        child: Text.rich(
+                                          TextSpan(
+                                            text: "$qualityName - ₹$rateVal",
+                                            style: TextStyle(
+                                              fontSize: 13.sp,
+                                              fontFamily: FontFamily.jost,
+                                              color: blackColor,
+                                              fontWeight: FontWeight.w500,
+                                            ),
+                                            children: [
+                                              if (item.createdAt != null)
+                                                TextSpan(
+                                                  text:
+                                                      ' (${_formatRateDate(item.createdAt)})',
+                                                  style: TextStyle(
+                                                    fontSize: 12.sp,
+                                                    fontFamily: FontFamily.jost,
+                                                    color: greyColor,
+                                                    fontWeight: FontWeight.w400,
+                                                  ),
+                                                ),
+                                            ],
+                                          ),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                        ),
+                                      );
+                                    }).toList(),
+                                    onChanged: (QualityRateData? newValue) {
+                                      if (newValue != null) {
+                                        controller.selectQuality(newValue);
+                                      }
+                                    },
                                   ),
                                 ),
-                              ),
-                            ),
+                              );
+                            })(),
                           ] else ...[
                             _buildFieldLabel('Selected Rate'),
                             Container(
@@ -561,44 +640,79 @@ class _BillingScreenState extends State<BillingScreen> {
                               ),
                               child: Align(
                                 alignment: Alignment.centerLeft,
-                                child: Text(
-                                  controller.selectedQuality?.quality ==
-                                          'my_rate'
-                                      ? "${controller.vendorName} - ₹${controller.vendorRate}"
-                                      : (() {
-                                          if (controller.selectedQuality ==
-                                              null) {
-                                            if (controller.vendorRate > 0) {
-                                              return "${controller.vendorName} - ₹${controller.vendorRate}";
-                                            }
-                                            return 'No Rate Selected';
-                                          }
-                                          final rawQuality = controller
-                                                  .selectedQuality!.quality ??
-                                              'Unknown';
-                                          final qualityName = rawQuality
-                                              .split('_')
-                                              .map((word) => word.isNotEmpty
-                                                  ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
-                                                  : '')
-                                              .join(' ');
-                                          final rateVal = controller
-                                                  .selectedQuality!.rate ??
-                                              0;
-                                          final dateSuffix = (controller
-                                                      .selectedQuality!
-                                                      .createdAt !=
-                                                  null)
-                                              ? ' (${_formatRateDate(controller.selectedQuality!.createdAt)})'
-                                              : '';
-                                          return "$qualityName - ₹$rateVal$dateSuffix";
-                                        })(),
-                                  style: TextStyle(
-                                    fontSize: 14.sp,
-                                    fontFamily: FontFamily.jost,
-                                    color: blackColor,
-                                  ),
-                                ),
+                                child: (() {
+                                  if (controller.selectedQuality?.quality ==
+                                      'my_rate') {
+                                    return Text(
+                                      "${controller.vendorName} - ₹${controller.vendorRate}",
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        fontFamily: FontFamily.jost,
+                                        color: blackColor,
+                                      ),
+                                    );
+                                  }
+                                  if (controller.selectedQuality == null) {
+                                    if (controller.vendorRate > 0) {
+                                      return Text(
+                                        "${controller.vendorName} - ₹${controller.vendorRate}",
+                                        style: TextStyle(
+                                          fontSize: 14.sp,
+                                          fontFamily: FontFamily.jost,
+                                          color: blackColor,
+                                        ),
+                                      );
+                                    }
+                                    return Text(
+                                      'No Rate Selected',
+                                      style: TextStyle(
+                                        fontSize: 14.sp,
+                                        fontFamily: FontFamily.jost,
+                                        color: blackColor,
+                                      ),
+                                    );
+                                  }
+
+                                  final rawQuality =
+                                      controller.selectedQuality!.quality ??
+                                          'Unknown';
+                                  final qualityName = rawQuality
+                                      .split('_')
+                                      .map((word) => word.isNotEmpty
+                                          ? '${word[0].toUpperCase()}${word.substring(1).toLowerCase()}'
+                                          : '')
+                                      .join(' ');
+                                  final rateVal =
+                                      controller.selectedQuality!.rate ?? 0;
+
+                                  return Text.rich(
+                                    TextSpan(
+                                      text: "$qualityName - ₹$rateVal",
+                                      style: TextStyle(
+                                        fontSize: 13.sp,
+                                        fontFamily: FontFamily.jost,
+                                        color: blackColor,
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      children: [
+                                        if (controller
+                                                .selectedQuality!.createdAt !=
+                                            null)
+                                          TextSpan(
+                                            text:
+                                                ' (${_formatRateDate(controller.selectedQuality!.createdAt)})',
+                                            style: TextStyle(
+                                              fontSize: 10.sp,
+                                              fontFamily: FontFamily.jost,
+                                              color: greyColor,
+                                            ),
+                                          ),
+                                      ],
+                                    ),
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                  );
+                                })(),
                               ),
                             ),
                           ],
