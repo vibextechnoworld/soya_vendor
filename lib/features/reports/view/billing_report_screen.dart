@@ -790,6 +790,27 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
             ),
           ),
         ),
+        if (bill.isOverdue)
+          Padding(
+            padding: EdgeInsets.only(top: 4.h),
+            child: Container(
+              padding: EdgeInsets.symmetric(horizontal: 10.w, vertical: 3.h),
+              decoration: BoxDecoration(
+                color: Colors.red.withOpacity(0.15),
+                borderRadius: BorderRadius.circular(20.r),
+                border: Border.all(color: Colors.red.withOpacity(0.5)),
+              ),
+              child: Text(
+                "DUE",
+                style: TextStyle(
+                  fontSize: 9.sp,
+                  color: Colors.red,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: FontFamily.jost,
+                ),
+              ),
+            ),
+          ),
         if (status.toUpperCase() == 'HOLD')
           _HoldReasonWidget(billId: bill.id ?? ""),
       ],
@@ -814,14 +835,14 @@ class BillFilterBottomSheet extends StatefulWidget {
 class _BillFilterBottomSheetState extends State<BillFilterBottomSheet> {
   DateTime? _startDate;
   DateTime? _endDate;
-  final List<String> _statuses = [
-    'DRAFT',
-    'PENDING',
-    'COMPLETED',
-    'CANCELLED',
-    'FINALIZED',
-    'PAID'
-  ];
+    final List<String> _statuses = [
+      'DRAFT',
+      'PENDING',
+      'COMPLETED',
+      'CANCELLED',
+      'FINALIZED',
+      'PAID'
+    ];
   List<String> _selectedStatuses = [];
 
   @override
