@@ -8,6 +8,7 @@ import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:printing/printing.dart';
 import 'package:soya_app/core/constants/api_constants.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import 'package:soya_app/core/services/api_service.dart';
 import 'package:soya_app/features/home/model/bill_model.dart';
 
@@ -66,7 +67,15 @@ class PdfInvoiceService {
   }) async {
     final ttf = await PdfGoogleFonts.jostRegular();
     final ttfBold = await PdfGoogleFonts.jostBold();
-    final data = _BillPrintData.fromBill(bill, deductions: deductions);
+    String? vName;
+    String? vMobile;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      vName = prefs.getString('userName');
+      vMobile = prefs.getString('userPhone');
+    } catch (_) {}
+    final data = _BillPrintData.fromBill(bill,
+        deductions: deductions, vendorName: vName, vendorMobile: vMobile);
     final disclaimerText = customDisclaimer ?? await _fetchDisclaimer();
 
     final pdf = pw.Document(
@@ -141,7 +150,15 @@ class PdfInvoiceService {
   }) async {
     final ttf = await PdfGoogleFonts.robotoMonoRegular();
     final ttfBold = await PdfGoogleFonts.robotoMonoBold();
-    final data = _BillPrintData.fromBill(bill, deductions: deductions);
+    String? vName;
+    String? vMobile;
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      vName = prefs.getString('userName');
+      vMobile = prefs.getString('userPhone');
+    } catch (_) {}
+    final data = _BillPrintData.fromBill(bill,
+        deductions: deductions, vendorName: vName, vendorMobile: vMobile);
     final disclaimerText = customDisclaimer ?? await _fetchDisclaimer();
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
@@ -203,7 +220,7 @@ class PdfInvoiceService {
                 _thermalCenter(ttfBold, 'QUALITY DETAILS (QC)', size: 7),
                 _thermalQualityHeader(ttfBold, detailed: true),
                 ...data.qualityRows.map((row) => _thermalQualityRow(ttf, row)),
-                _thermalRow(ttf, ttfBold, 'Total Deduct', data.deductionTotal,
+                _thermalRow(ttf, ttfBold, 'Total Deduct', data.deductionTotalValue,
                     boldValue: true, labelWidth: 82),
                 _thermalLine(),
                 _thermalCenter(ttfBold, 'DECLARATION'),
@@ -312,9 +329,9 @@ class PdfInvoiceService {
             pw.Expanded(
               child: pw.Column(
                 children: [
-                  _a4InlineField(ttf, ttfBold, 'Officer Name', '',
+                  _a4InlineField(ttf, ttfBold, 'Officer Name', data.vendorName,
                       labelWidth: 102),
-                  _a4InlineField(ttf, ttfBold, 'Officer Mobile No.', '',
+                  _a4InlineField(ttf, ttfBold, 'Officer Mobile No.', data.vendorMobile,
                       labelWidth: 102),
                   _a4InlineField(ttf, ttfBold, 'Center Name', data.location,
                       labelWidth: 102),
@@ -448,7 +465,7 @@ class PdfInvoiceService {
           _a4Dash(),
           ...data.qualityRows.map((row) => _a4QualityRow(ttf, row)),
           _a4Dash(),
-          _a4AmountRow(ttf, ttfBold, 'Total Deduction', data.deductionTotal,
+          _a4AmountRow(ttf, ttfBold, 'Total Deduction', data.deductionTotalValue,
               bold: true),
         ],
       ),
@@ -1578,7 +1595,10 @@ class _BillPrintData {
   final String actualRate;
   final String payableAmount;
   final int payableRounded;
+  final String vendorName;
+  final String vendorMobile;
   final String deductionTotal;
+  final String deductionTotalValue;
   final String bankName;
   final String holderName;
   final String accountNo;
@@ -1614,7 +1634,10 @@ class _BillPrintData {
     required this.actualRate,
     required this.payableAmount,
     required this.payableRounded,
+    required this.vendorName,
+    required this.vendorMobile,
     required this.deductionTotal,
+    required this.deductionTotalValue,
     required this.bankName,
     required this.holderName,
     required this.accountNo,
@@ -1633,6 +1656,8 @@ class _BillPrintData {
   factory _BillPrintData.fromBill(
     BillModel bill, {
     List<BillDeduction>? deductions,
+    String? vendorName,
+    String? vendorMobile,
   }) {
     final farmer = bill.farmer;
     final bank =
@@ -1673,6 +1698,10 @@ class _BillPrintData {
 
     final bagRows = _bagRows(bill);
     final qualityRows = _qualityRows(billDeductions);
+    final deductionTotalValue = qualityRows.fold<num>(
+      0,
+      (sum, row) => sum + (num.tryParse(row.length > 3 ? row[3] : '0') ?? 0),
+    );
     final totalBags = _totalBags(bill);
     final kaltaniBags = _typedBagCount(bill, 'kaltani');
     final ppBags = totalBags - kaltaniBags;
@@ -1698,7 +1727,10 @@ class _BillPrintData {
       actualRate: _fmt(rate),
       payableAmount: _money(payable),
       payableRounded: payable.round(),
+      vendorName: vendorName ?? _clean(farmer?.vendorName),
+      vendorMobile: vendorMobile ?? '',
       deductionTotal: _money(deductionTotal),
+      deductionTotalValue: _fmt(deductionTotalValue),
       bankName: _clean(bank?.bankName),
       holderName: _clean(bank?.holderName ?? farmer?.name),
       accountNo: _clean(bank?.accountNo),
