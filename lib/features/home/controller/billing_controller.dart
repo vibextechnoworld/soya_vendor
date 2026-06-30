@@ -484,6 +484,14 @@ class BillingController extends ChangeNotifier {
         if (model.success == true) {
           _todaysRates = model.data ?? [];
           _vendorRate = model.vendorRate ?? 0;
+          // Save standard rate to SharedPreferences for use in bill print receipt
+          if (_todaysRates.isNotEmpty) {
+            final rate = _todaysRates.first.rate;
+            if (rate != null) {
+              SharedPreferences.getInstance()
+                  .then((prefs) => prefs.setInt('standardRate', rate));
+            }
+          }
           // Auto-fill selected quality with vendor rate if available
           if (_vendorRate > 0) {
             _selectedQuality = QualityRateData(
@@ -519,6 +527,14 @@ class BillingController extends ChangeNotifier {
         if (model.success == true) {
           _todaysRates = model.data ?? [];
           _vendorRate = model.vendorRate ?? 0;
+          // Save standard rate to SharedPreferences for use in bill print receipt
+          if (_todaysRates.isNotEmpty) {
+            final rate = _todaysRates.first.rate;
+            if (rate != null) {
+              SharedPreferences.getInstance()
+                  .then((prefs) => prefs.setInt('standardRate', rate));
+            }
+          }
           // Sort by createdAt descending to get the latest one first
           if (_todaysRates.isNotEmpty) {
             _todaysRates.sort((a, b) {

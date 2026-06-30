@@ -65,17 +65,29 @@ class PdfInvoiceService {
     List<BillDeduction>? deductions,
     String? customDisclaimer,
   }) async {
-    final ttf = await PdfGoogleFonts.jostRegular();
-    final ttfBold = await PdfGoogleFonts.jostBold();
+    final ttf = await PdfGoogleFonts.notoSansDevanagariRegular();
+    final ttfBold = await PdfGoogleFonts.notoSansDevanagariBold();
     String? vName;
     String? vMobile;
+    String? vLocation;
+    int? stdRate;
     try {
       final prefs = await SharedPreferences.getInstance();
       vName = prefs.getString('userName');
       vMobile = prefs.getString('userPhone');
+      final vVillage = prefs.getString('villageAdd') ?? '';
+      final vTaluka = prefs.getString('taluka') ?? '';
+      final vDistrict = prefs.getString('district') ?? '';
+      vLocation =
+          [vVillage, vTaluka, vDistrict].where((s) => s.isNotEmpty).join(', ');
+      stdRate = prefs.getInt('standardRate');
     } catch (_) {}
     final data = _BillPrintData.fromBill(bill,
-        deductions: deductions, vendorName: vName, vendorMobile: vMobile);
+        deductions: deductions,
+        vendorName: vName,
+        vendorMobile: vMobile,
+        vendorLocation: vLocation,
+        standardRate: stdRate);
     final disclaimerText = customDisclaimer ?? await _fetchDisclaimer();
 
     final pdf = pw.Document(
@@ -103,7 +115,8 @@ class PdfInvoiceService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Expanded(child: _a4FarmerBlock(ttf, ttfBold, data)),
-                      pw.Container(width: .6, height: 146, color: PdfColors.black),
+                      pw.Container(
+                          width: .6, height: 146, color: PdfColors.black),
                       pw.Expanded(child: _a4PurchaseBlock(ttf, ttfBold, data)),
                     ],
                   ),
@@ -112,9 +125,11 @@ class PdfInvoiceService {
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
                     children: [
                       pw.Expanded(child: _a4WeightBlock(ttf, ttfBold, data)),
-                      pw.Container(width: .6, height: 114, color: PdfColors.black),
+                      pw.Container(
+                          width: .6, height: 114, color: PdfColors.black),
                       pw.Expanded(child: _a4BagBlock(ttf, ttfBold, data)),
-                      pw.Container(width: .6, height: 114, color: PdfColors.black),
+                      pw.Container(
+                          width: .6, height: 114, color: PdfColors.black),
                       pw.Expanded(child: _a4QualityBlock(ttf, ttfBold, data)),
                     ],
                   ),
@@ -148,17 +163,29 @@ class PdfInvoiceService {
     List<BillDeduction>? deductions,
     String? customDisclaimer,
   }) async {
-    final ttf = await PdfGoogleFonts.robotoMonoRegular();
-    final ttfBold = await PdfGoogleFonts.robotoMonoBold();
+    final ttf = await PdfGoogleFonts.notoSansDevanagariRegular();
+    final ttfBold = await PdfGoogleFonts.notoSansDevanagariBold();
     String? vName;
     String? vMobile;
+    String? vLocation;
+    int? stdRate;
     try {
       final prefs = await SharedPreferences.getInstance();
       vName = prefs.getString('userName');
       vMobile = prefs.getString('userPhone');
+      final vVillage = prefs.getString('villageAdd') ?? '';
+      final vTaluka = prefs.getString('taluka') ?? '';
+      final vDistrict = prefs.getString('district') ?? '';
+      vLocation =
+          [vVillage, vTaluka, vDistrict].where((s) => s.isNotEmpty).join(', ');
+      stdRate = prefs.getInt('standardRate');
     } catch (_) {}
     final data = _BillPrintData.fromBill(bill,
-        deductions: deductions, vendorName: vName, vendorMobile: vMobile);
+        deductions: deductions,
+        vendorName: vName,
+        vendorMobile: vMobile,
+        vendorLocation: vLocation,
+        standardRate: stdRate);
     final disclaimerText = customDisclaimer ?? await _fetchDisclaimer();
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
@@ -220,7 +247,8 @@ class PdfInvoiceService {
                 _thermalCenter(ttfBold, 'QUALITY DETAILS (QC)', size: 7),
                 _thermalQualityHeader(ttfBold, detailed: true),
                 ...data.qualityRows.map((row) => _thermalQualityRow(ttf, row)),
-                _thermalRow(ttf, ttfBold, 'Total Deduct', data.deductionTotalValue,
+                _thermalRow(
+                    ttf, ttfBold, 'Total Deduct', data.deductionTotalValue,
                     boldValue: true, labelWidth: 82),
                 _thermalLine(),
                 _thermalCenter(ttfBold, 'DECLARATION'),
@@ -240,8 +268,7 @@ class PdfInvoiceService {
                   ],
                 ),
                 _thermalLine(),
-                _thermalCenter(ttfBold, 'Generated / Billing Time',
-                    size: 6.2),
+                _thermalCenter(ttfBold, 'Generated / Billing Time', size: 6.2),
                 _thermalCenter(ttf, data.printedOn, size: 6),
                 _thermalCenter(ttfBold, 'KISAN HELPLINE : $_helpline',
                     size: 6.3),
@@ -331,7 +358,8 @@ class PdfInvoiceService {
                 children: [
                   _a4InlineField(ttf, ttfBold, 'Officer Name', data.vendorName,
                       labelWidth: 102),
-                  _a4InlineField(ttf, ttfBold, 'Officer Mobile No.', data.vendorMobile,
+                  _a4InlineField(
+                      ttf, ttfBold, 'Officer Mobile No.', data.vendorMobile,
                       labelWidth: 102),
                   _a4InlineField(ttf, ttfBold, 'Center Name', data.location,
                       labelWidth: 102),
@@ -382,7 +410,8 @@ class PdfInvoiceService {
               children: [
                 pw.Text("Today's Purchase Rate",
                     style: pw.TextStyle(font: ttfBold, fontSize: 8.5)),
-                pw.Text('  :  ', style: pw.TextStyle(font: ttfBold, fontSize: 8.5)),
+                pw.Text('  :  ',
+                    style: pw.TextStyle(font: ttfBold, fontSize: 8.5)),
                 pw.Text('Rs. ${data.actualRate} / Qtl',
                     style: pw.TextStyle(font: ttfBold, fontSize: 8.5)),
               ],
@@ -411,17 +440,17 @@ class PdfInvoiceService {
           _a4SectionTitle(ttfBold, 'WEIGHT SUMMARY'),
           pw.SizedBox(height: 8),
           _a4AmountRow(ttf, ttfBold, 'Gross Weight', '${data.grossKg} KG'),
-          _a4AmountRow(
-              ttf, ttfBold, 'Bag Weight (Deduction)', '${data.bagDeductionKg} KG'),
+          _a4AmountRow(ttf, ttfBold, 'Bag Weight (Deduction)',
+              '${data.bagDeductionKg} KG'),
           _a4Dash(),
           _a4AmountRow(ttf, ttfBold, 'Net Weight', '${data.netKg} KG',
               bold: true),
           _a4Dash(),
-          _a4AmountRow(ttf, ttfBold, 'Final Purchase Rate',
-              'Rs. ${data.actualRate} / Qtl'),
+          _a4AmountRow(
+              ttf, ttfBold, 'Final Purchase Rate', 'Rs. ${data.rate} / Qtl'),
           _a4Dash(),
-          _a4AmountRow(ttf, ttfBold, 'PAYABLE AMOUNT',
-              'Rs. ${data.payableAmount}',
+          _a4AmountRow(
+              ttf, ttfBold, 'PAYABLE AMOUNT', 'Rs. ${data.payableAmount}',
               bold: true, fontSize: 9.3),
         ],
       ),
@@ -460,12 +489,14 @@ class PdfInvoiceService {
         children: [
           _a4SectionTitle(ttfBold, 'QUALITY / LAB ANALYSIS'),
           pw.SizedBox(height: 7),
-          _a4QualityRow(ttfBold, ['Parameter', 'Allowed', 'Actual', 'Deduction'],
+          _a4QualityRow(
+              ttfBold, ['Parameter', 'Allowed', 'Actual', 'Deduction'],
               isHeader: true),
           _a4Dash(),
           ...data.qualityRows.map((row) => _a4QualityRow(ttf, row)),
           _a4Dash(),
-          _a4AmountRow(ttf, ttfBold, 'Total Deduction', data.deductionTotalValue,
+          _a4AmountRow(
+              ttf, ttfBold, 'Total Deduction', data.deductionTotalValue,
               bold: true),
         ],
       ),
@@ -479,7 +510,8 @@ class PdfInvoiceService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
-          pw.Text('BANK DETAILS', style: pw.TextStyle(font: ttfBold, fontSize: 9)),
+          pw.Text('BANK DETAILS',
+              style: pw.TextStyle(font: ttfBold, fontSize: 9)),
           pw.SizedBox(height: 3),
           pw.Row(
             children: [
@@ -501,7 +533,8 @@ class PdfInvoiceService {
                     _a4InlineField(
                         ttf, ttfBold, 'Account Holder', data.holderName,
                         labelWidth: 100),
-                    _a4InlineField(ttf, ttfBold, 'IFSC Code & Branch', data.ifsc,
+                    _a4InlineField(
+                        ttf, ttfBold, 'IFSC Code & Branch', data.ifsc,
                         labelWidth: 100),
                   ],
                 ),
@@ -530,7 +563,7 @@ class PdfInvoiceService {
                 _a4InlineField(ttf, ttfBold, 'Net Weight', '${data.netKg} KG',
                     labelWidth: 96),
                 _a4InlineField(
-                    ttf, ttfBold, 'Purchase Rate', 'Rs. ${data.actualRate} / Qtl',
+                    ttf, ttfBold, 'Purchase Rate', 'Rs. ${data.rate} / Qtl',
                     labelWidth: 96),
                 _a4InlineField(
                     ttf, ttfBold, 'Total Amount', 'Rs. ${data.payableAmount}',
@@ -547,7 +580,8 @@ class PdfInvoiceService {
           pw.Expanded(
             child: pw.Column(
               children: [
-                _a4InlineField(ttf, ttfBold, 'Purchase Point Sr. No.', data.kpNo,
+                _a4InlineField(
+                    ttf, ttfBold, 'Purchase Point Sr. No.', data.kpNo,
                     labelWidth: 120),
                 _a4InlineField(ttf, ttfBold, 'Date', data.date,
                     labelWidth: 120),
@@ -556,8 +590,7 @@ class PdfInvoiceService {
                 _a4InlineField(
                     ttf, ttfBold, 'Kaltani Bags (50 Kg)', data.kaltaniBags,
                     labelWidth: 120),
-                _a4InlineField(
-                    ttf, ttfBold, 'PP Bags (150 Gms)', data.ppBags,
+                _a4InlineField(ttf, ttfBold, 'PP Bags (150 Gms)', data.ppBags,
                     labelWidth: 120),
               ],
             ),
@@ -580,7 +613,8 @@ class PdfInvoiceService {
               border: pw.Border.all(color: PdfColors.black, width: 1.4),
               shape: pw.BoxShape.circle,
             ),
-            child: pw.Text('A', style: pw.TextStyle(font: ttfBold, fontSize: 13)),
+            child:
+                pw.Text('A', style: pw.TextStyle(font: ttfBold, fontSize: 13)),
           ),
           pw.SizedBox(width: 12),
           pw.Expanded(
@@ -606,7 +640,8 @@ class PdfInvoiceService {
               border: pw.Border.all(color: PdfColors.black, width: 1.4),
               shape: pw.BoxShape.circle,
             ),
-            child: pw.Text('T', style: pw.TextStyle(font: ttfBold, fontSize: 13)),
+            child:
+                pw.Text('T', style: pw.TextStyle(font: ttfBold, fontSize: 13)),
           ),
           pw.SizedBox(width: 12),
           pw.Expanded(
@@ -719,7 +754,8 @@ class PdfInvoiceService {
           pw.Expanded(
             flex: 5,
             child: pw.Text(values[0],
-                style: pw.TextStyle(font: font, fontSize: isHeader ? 6.7 : 7.1)),
+                style:
+                    pw.TextStyle(font: font, fontSize: isHeader ? 6.7 : 7.1)),
           ),
           for (final value in values.skip(1))
             pw.Expanded(
@@ -727,8 +763,7 @@ class PdfInvoiceService {
               child: pw.Text(
                 value,
                 textAlign: pw.TextAlign.center,
-                style:
-                    pw.TextStyle(font: font, fontSize: isHeader ? 6.7 : 7.1),
+                style: pw.TextStyle(font: font, fontSize: isHeader ? 6.7 : 7.1),
               ),
             ),
         ],
@@ -1050,8 +1085,8 @@ class PdfInvoiceService {
                 _a4ReturnField(ttf, ttfBold, 'Farmer Name', data.farmerName),
                 _a4ReturnField(ttf, ttfBold, 'Vehicle Number', data.vehicleNo),
                 _a4ReturnField(ttf, ttfBold, 'Net Weight', '${data.netKg} KG'),
-                _a4ReturnField(ttf, ttfBold, 'Purchase Rate',
-                    'Rs. ${data.actualRate} / Qtl'),
+                _a4ReturnField(
+                    ttf, ttfBold, 'Purchase Rate', 'Rs. ${data.rate} / Qtl'),
                 _a4ReturnField(
                     ttf, ttfBold, 'Total Amount', 'Rs. ${data.payableAmount}'),
               ],
@@ -1251,11 +1286,10 @@ class PdfInvoiceService {
       child: pw.Column(
         children: [
           _thermalRow(ttf, ttfBold, 'Commodity', _commodity, labelWidth: 62),
-          _thermalRow(ttf, ttfBold, "Today's Rate",
-              'Rs ${data.actualRate} / Qtl',
+          _thermalRow(
+              ttf, ttfBold, "Today's Rate", 'Rs ${data.actualRate} / Qtl',
               labelWidth: 62),
-          _thermalRow(ttf, ttfBold, 'Purchase Rate',
-              'Rs ${data.actualRate} / Qtl',
+          _thermalRow(ttf, ttfBold, 'Purchase Rate', 'Rs ${data.rate} / Qtl',
               labelWidth: 62),
           pw.SizedBox(height: 3),
           _thermalRow(ttf, ttfBold, 'AMOUNT', 'Rs ${data.payableAmount}',
@@ -1288,15 +1322,15 @@ class PdfInvoiceService {
       children: [
         pw.SizedBox(
           width: labelWidth,
-          child:
-              pw.Text(label, style: pw.TextStyle(font: ttfBold, fontSize: fontSize)),
+          child: pw.Text(label,
+              style: pw.TextStyle(font: ttfBold, fontSize: fontSize)),
         ),
         pw.Text(': ', style: pw.TextStyle(font: ttf, fontSize: fontSize)),
         pw.Expanded(
           child: pw.Text(
             value,
-            style:
-                pw.TextStyle(font: boldValue ? ttfBold : ttf, fontSize: fontSize),
+            style: pw.TextStyle(
+                font: boldValue ? ttfBold : ttf, fontSize: fontSize),
           ),
         ),
       ],
@@ -1330,11 +1364,10 @@ class PdfInvoiceService {
       child: pw.Row(
         children: [
           pw.Expanded(
-            child: pw.Text(label,
-                style: pw.TextStyle(font: font, fontSize: 6.1)),
+            child:
+                pw.Text(label, style: pw.TextStyle(font: font, fontSize: 6.1)),
           ),
-          pw.Text(value,
-              style: pw.TextStyle(font: font, fontSize: 6.1)),
+          pw.Text(value, style: pw.TextStyle(font: font, fontSize: 6.1)),
         ],
       ),
     );
@@ -1379,7 +1412,8 @@ class PdfInvoiceService {
           pw.Expanded(
             flex: 7,
             child: pw.Text(cells[0],
-                style: pw.TextStyle(font: font, fontSize: isHeader ? 5.4 : 5.8)),
+                style:
+                    pw.TextStyle(font: font, fontSize: isHeader ? 5.4 : 5.8)),
           ),
           for (final cell in cells.skip(1))
             pw.Expanded(
@@ -1387,8 +1421,7 @@ class PdfInvoiceService {
               child: pw.Text(
                 cell,
                 textAlign: pw.TextAlign.center,
-                style:
-                    pw.TextStyle(font: font, fontSize: isHeader ? 5.4 : 5.8),
+                style: pw.TextStyle(font: font, fontSize: isHeader ? 5.4 : 5.8),
               ),
             ),
         ],
@@ -1449,7 +1482,7 @@ class PdfInvoiceService {
           _thermalRow(ttf, ttfBold, 'Farmer Name', data.farmerName),
           _thermalRow(ttf, ttfBold, 'Vehicle No', data.vehicleNo),
           _thermalRow(ttf, ttfBold, 'Net Weight', '${data.netKg} KG'),
-          _thermalRow(ttf, ttfBold, 'Rate', 'Rs ${data.actualRate} / Qtl'),
+          _thermalRow(ttf, ttfBold, 'Rate', 'Rs ${data.rate} / Qtl'),
           _thermalRow(ttf, ttfBold, 'Total Amount', 'Rs ${data.payableAmount}'),
           _thermalLine(),
           _thermalRow(ttf, ttfBold, 'KP No', data.kpNo),
@@ -1575,6 +1608,7 @@ class PdfInvoiceService {
 }
 
 class _BillPrintData {
+  final String rate;
   final String farmerId;
   final String farmerName;
   final String aadhaar;
@@ -1614,6 +1648,7 @@ class _BillPrintData {
   final List<List<String>> thermalQualityRows;
 
   _BillPrintData({
+    required this.rate,
     required this.farmerId,
     required this.farmerName,
     required this.aadhaar,
@@ -1658,6 +1693,8 @@ class _BillPrintData {
     List<BillDeduction>? deductions,
     String? vendorName,
     String? vendorMobile,
+    String? vendorLocation,
+    int? standardRate,
   }) {
     final farmer = bill.farmer;
     final bank =
@@ -1674,21 +1711,22 @@ class _BillPrintData {
           0,
       bill.primaryUnit,
     );
-    final bagDeductionQtl =
-        _asQtl(calc?.bagWeight ?? bill.goniWeight ?? 0, 'KG');
+    final bagDeductionQtl = calc?.bagWeight ?? bill.goniWeight ?? 0;
     final grossQtl = calc?.totalQuantityReceived != null
         ? _asQtl(calc?.totalQuantityReceived ?? 0, bill.primaryUnit)
         : netQtl + bagDeductionQtl;
-    final rate = calc?.rateAfterLabDeductionRounded ??
+    final finalRate = calc?.rateAfterLabDeductionRounded ??
         calc?.ratePerUnit ??
         bill.ratePerUnit ??
         bill.items?.firstOrNull?.rate ??
         0;
-    final payable = calc?.recalculatedTotal ??
-        calc?.finalPayableAmount ??
-        bill.netPayable ??
-        bill.totalAmount ??
-        0;
+    final actualRateVal = standardRate ?? finalRate;
+    final totalPayable =
+        calc?.recalculatedTotal ?? bill.netPayable ?? bill.totalAmount ?? 0;
+    final advance = (bill.advancedAmount != null && bill.advancedAmount! > 0)
+        ? bill.advancedAmount!
+        : 0;
+    final payable = bill.balanceAmount ?? (totalPayable - advance);
     final billDeductions = deductions?.isNotEmpty == true
         ? deductions!
         : (bill.deductions ?? const <BillDeduction>[]);
@@ -1707,6 +1745,7 @@ class _BillPrintData {
     final ppBags = totalBags - kaltaniBags;
 
     return _BillPrintData(
+      rate: _fmt(finalRate),
       farmerId: _short(farmer?.id ?? bill.farmerId),
       farmerName: _clean(farmer?.name),
       aadhaar: _clean(farmer?.aadhaarNo),
@@ -1714,23 +1753,23 @@ class _BillPrintData {
       village: _clean(farmer?.villageAdd),
       taluka: _clean(farmer?.taluka),
       district: _clean(farmer?.district),
-      grnNo: _short(bill.id),
+      grnNo: _clean(bill.grnNo ?? bill.id),
       kpNo: _clean(bill.billNo),
       date: DateFormat('dd/MM/yyyy').format(billDate),
       time: DateFormat('hh:mm a').format(created),
       printedOn: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()),
-      location: _clean(bill.billLocation),
+      location: vendorLocation ?? _clean(bill.billLocation),
       vehicleNo: _clean(bill.vehicleNumber),
       grossKg: _fmt(grossQtl * 100),
       bagDeductionKg: _fmt(bagDeductionQtl * 100),
       netKg: _fmt(netQtl * 100),
-      actualRate: _fmt(rate),
+      actualRate: _fmt(actualRateVal),
       payableAmount: _money(payable),
       payableRounded: payable.round(),
       vendorName: vendorName ?? _clean(farmer?.vendorName),
       vendorMobile: vendorMobile ?? '',
       deductionTotal: _money(deductionTotal),
-      deductionTotalValue: _fmt(deductionTotalValue),
+      deductionTotalValue: _fmtPrecise(deductionTotalValue),
       bankName: _clean(bank?.bankName),
       holderName: _clean(bank?.holderName ?? farmer?.name),
       accountNo: _clean(bank?.accountNo),
@@ -1869,7 +1908,7 @@ class _BillPrintData {
               _label(entry.key),
               _fmt(entry.value[0]),
               _fmt(entry.value[1]),
-              _fmt(entry.value[2]),
+              _fmtPrecise(entry.value[2]),
             ])
         .toList();
   }
@@ -1965,6 +2004,7 @@ class _BillPrintData {
   }
 
   static String _fmt(num value) => value.toStringAsFixed(2);
+  static String _fmtPrecise(num value) => value.toStringAsFixed(4);
 
   static String _money(num value) {
     final formatter = NumberFormat('#,##,##0.00', 'en_IN');

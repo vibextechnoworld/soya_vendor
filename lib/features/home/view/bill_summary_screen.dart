@@ -2024,7 +2024,7 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                 ),
               ),
               Text(
-                "- ₹${deduction.value?.toStringAsFixed(2) ?? '0.00'}",
+                "- ₹${deduction.value?.toStringAsFixed(4) ?? '0.0000'}",
                 style: TextStyle(
                   fontSize: 14.sp,
                   fontWeight: FontWeight.bold,
@@ -2363,7 +2363,7 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                                 0.0,
                                 (sum, v) => sum + (v.deducted ?? 0),
                               )
-                              .toStringAsFixed(2),
+                              .toStringAsFixed(5),
                           isBold: true,
                           color: deduction.variableDetails!.fold<double>(
                                     0.0,

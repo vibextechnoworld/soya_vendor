@@ -293,6 +293,15 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                         ),
                         SizedBox(height: 40.h),
+                        Text(
+                          'Developed by Dashon solutions pvt.ltd  support number 9850604054',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            fontSize: 10.sp,
+                            color: black54,
+                          ),
+                        ),
+                        SizedBox(height: 10.h),
                       ],
                     ),
                   ),

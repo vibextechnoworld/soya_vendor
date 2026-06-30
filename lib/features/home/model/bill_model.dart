@@ -130,7 +130,9 @@ class BillDetailModel {
 }
 
 class BillModel {
+  final String? rate;
   final String? id;
+  final String? grnNo;
   final String? billNo;
   final String? billDate;
   final String? vendorId;
@@ -182,7 +184,9 @@ class BillModel {
   }
 
   BillModel({
+    this.rate,
     this.id,
+    this.grnNo,
     this.billNo,
     this.billDate,
     this.vendorId,
@@ -221,6 +225,8 @@ class BillModel {
   factory BillModel.fromJson(Map<String, dynamic> json) {
     return BillModel(
       id: json['id'] as String?,
+      rate: json['quality'] as String?,
+      grnNo: json['grnNumber'] as String?,
       billNo: json['billNo'] as String?,
       billDate: json['billDate'] as String?,
       vendorId: json['vendorId'] as String?,
@@ -267,6 +273,7 @@ class BillModel {
           ? PaymentModelDetail.fromJson(json['payment'] as Map<String, dynamic>)
           : null,
       billLocation: json['billLocation'] as String?,
+
       calculationDetails: json['calculationDetails'] != null
           ? CalculationDetails.fromJson(json['calculationDetails'])
           : null,
@@ -275,6 +282,8 @@ class BillModel {
 
   Map<String, dynamic> toJson() {
     return {
+      'quality': rate,
+      'grnNumber': grnNo,
       'id': id,
       'billNo': billNo,
       'billDate': billDate,

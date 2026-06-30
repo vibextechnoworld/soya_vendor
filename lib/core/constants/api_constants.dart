@@ -4,8 +4,8 @@ class ApiConstants {
   //------------------------ Vender APIs Endpoints --------------------------//
 
   // Base URL and Host
-  static const String baseHost = 'https://soya-farmer-1.onrender.com'; //old url
-  //static const String baseHost = 'http://59.94.35.174:8081';
+  // static const String baseHost = 'https://soya-farmer-1.onrender.com'; //old url
+  static const String baseHost = 'http://59.94.35.174:8081';
   static const String baseUrl = '$baseHost/api';
   static String get imageBaseUrl => baseHost;
 

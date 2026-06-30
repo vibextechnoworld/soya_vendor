@@ -1008,7 +1008,7 @@ class _BillingScreenState extends State<BillingScreen> {
                                     ),
                                     if (controller.currentDeductionAmount > 0)
                                       Text(
-                                        " - ₹${controller.currentDeductionAmount.toStringAsFixed(2)}",
+                                        " - ₹${controller.currentDeductionAmount.toStringAsFixed(4)}",
                                         style: TextStyle(
                                           fontSize: 18.sp,
                                           fontWeight: FontWeight.bold,

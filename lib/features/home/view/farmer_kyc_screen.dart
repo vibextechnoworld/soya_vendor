@@ -148,17 +148,16 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       if (aadhaar.length == 12) {
         _controller.searchFarmers(aadhaar).then((results) {
           if (results.isNotEmpty && _controller.createdFarmerId == null) {
-            final match = results.firstWhere((f) => f.aadhaarNo == aadhaar,
-                orElse: () => results.first);
-            _showExistsSuggestion(match);
+            final matches =
+                results.where((f) => f.aadhaarNo == aadhaar).toList();
+            if (matches.isNotEmpty) _showExistsSuggestion(matches.first);
           }
         });
       } else if (phone.length == 10) {
         _controller.searchFarmers(phone).then((results) {
           if (results.isNotEmpty && _controller.createdFarmerId == null) {
-            final match = results.firstWhere((f) => f.phone == phone,
-                orElse: () => results.first);
-            _showExistsSuggestion(match);
+            final matches = results.where((f) => f.phone == phone).toList();
+            if (matches.isNotEmpty) _showExistsSuggestion(matches.first);
           }
         });
       }
@@ -300,8 +299,9 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             if (_bloodRelationAreaController.text.isEmpty) {
               if (bloodLand.area != null) {
                 final bloodHectareVal = _acreToHectare(bloodLand.area!);
-                _bloodRelationAreaController.text =
-                    bloodHectareVal > 0 ? bloodHectareVal.toStringAsFixed(2) : '';
+                _bloodRelationAreaController.text = bloodHectareVal > 0
+                    ? bloodHectareVal.toStringAsFixed(2)
+                    : '';
               } else {
                 _bloodRelationAreaController.text = '';
               }
@@ -370,7 +370,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       _landTypeController.text = land.landType ?? 'OWN';
       if (land.area != null) {
         final hectareVal = _acreToHectare(land.area!);
-        _areaController.text = hectareVal > 0 ? hectareVal.toStringAsFixed(2) : '';
+        _areaController.text =
+            hectareVal > 0 ? hectareVal.toStringAsFixed(2) : '';
       } else {
         _areaController.text = '';
       }
@@ -514,8 +515,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       final name = sourceFile.path.split('/').last.split('\\').last;
       // Add timestamp to ensure uniqueness and avoid collision if same file name exists
       final timestamp = DateTime.now().millisecondsSinceEpoch;
-      final permanentPath =
-          '${directory.path}/${prefix}_${timestamp}_$name';
+      final permanentPath = '${directory.path}/${prefix}_${timestamp}_$name';
       return await sourceFile.copy(permanentPath);
     } catch (e) {
       debugPrint('Error saving file permanently: $e');
@@ -637,7 +637,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       final existingPanNo = controller.fetchedFarmerDetail?.panNo ?? '';
       final currentPanNo = _panNoController.text.trim();
 
-      bool hasNewFiles = _aadhaarImage != null || _panImage != null || _licenseImage != null;
+      bool hasNewFiles =
+          _aadhaarImage != null || _panImage != null || _licenseImage != null;
       bool panNoChanged = currentPanNo != existingPanNo;
 
       bool success = true;
@@ -727,8 +728,12 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             district: _landDistrictController.text.trim(),
             landType: landType,
             area: _convertInputHectareToAcreStr(_areaController.text),
-            landOwnerName: landType == 'BLOOD_RELATION' ? _landOwnerNameController.text.trim() : null,
-            relationType: landType == 'BLOOD_RELATION' ? _landRelationTypeController.text.trim().toUpperCase() : null,
+            landOwnerName: landType == 'BLOOD_RELATION'
+                ? _landOwnerNameController.text.trim()
+                : null,
+            relationType: landType == 'BLOOD_RELATION'
+                ? _landRelationTypeController.text.trim().toUpperCase()
+                : null,
             landImage: _landDocument!,
           );
         } else {
@@ -741,8 +746,12 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             taluka: _landTalukaController.text.trim(),
             district: _landDistrictController.text.trim(),
             area: _convertInputHectareToAcreStr(_areaController.text),
-            landOwnerName: landType == 'BLOOD_RELATION' ? _landOwnerNameController.text.trim() : null,
-            relationType: landType == 'BLOOD_RELATION' ? _landRelationTypeController.text.trim().toUpperCase() : null,
+            landOwnerName: landType == 'BLOOD_RELATION'
+                ? _landOwnerNameController.text.trim()
+                : null,
+            relationType: landType == 'BLOOD_RELATION'
+                ? _landRelationTypeController.text.trim().toUpperCase()
+                : null,
           );
         }
       }
@@ -765,9 +774,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             taluka: _landTalukaController.text.trim(),
             district: _landDistrictController.text.trim(),
             landType: 'BLOOD_RELATION',
-            area: _convertInputHectareToAcreStr(_bloodRelationAreaController.text),
+            area: _convertInputHectareToAcreStr(
+                _bloodRelationAreaController.text),
             landOwnerName: _bloodRelationOwnerNameController.text.trim(),
-            relationType: _bloodRelationRelationTypeController.text.trim().toUpperCase(),
+            relationType:
+                _bloodRelationRelationTypeController.text.trim().toUpperCase(),
             landImage: _bloodRelationLandDocument!,
           );
         } else if (_bloodRelationAreaController.text.trim().isNotEmpty &&
@@ -1486,7 +1497,6 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                                       _buildSearchTypeRadioButton(controller,
                                           FarmerSearchType.name, 'Name'),
                                       SizedBox(width: 12.w),
-                                      
                                       _buildSearchTypeRadioButton(controller,
                                           FarmerSearchType.phone, 'Phone'),
                                     ],
@@ -2407,7 +2417,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-_buildFieldLabel('Taluka'),
+                                _buildFieldLabel('Taluka'),
                                 DropdownSearch<LocationModel>(
                                   popupProps: PopupProps.menu(
                                     showSearchBox: true,
@@ -2912,7 +2922,7 @@ _buildFieldLabel('Taluka'),
                       _buildFieldLabel('Account Number *'),
                       _buildTextField(
                         controller: _accountNoController,
-                        keyboardType: TextInputType.number,
+                        keyboardType: TextInputType.text,
                         autovalidateMode: AutovalidateMode.onUserInteraction,
                         onChanged: (value) {
                           if (_confirmAccountNoController.text.isNotEmpty) {
@@ -2937,7 +2947,7 @@ _buildFieldLabel('Taluka'),
                       _buildFieldLabel('Confirm Account No. *'),
                       _buildTextField(
                         controller: _confirmAccountNoController,
-                        keyboardType: TextInputType.number,
+                        keyboardType: TextInputType.text,
                         autovalidateMode: AutovalidateMode.onUserInteraction,
                         onChanged: (value) {
                           if (_accountNoController.text.isNotEmpty) {
@@ -3136,7 +3146,8 @@ _buildFieldLabel('Taluka'),
   }
 
   bool _isImageFile(String path) {
-    final extension = path.contains('.') ? path.split('.').last.toLowerCase() : '';
+    final extension =
+        path.contains('.') ? path.split('.').last.toLowerCase() : '';
     return ['jpg', 'jpeg', 'png', 'bmp'].contains(extension);
   }
 

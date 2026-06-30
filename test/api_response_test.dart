@@ -5,7 +5,9 @@ import 'package:http/http.dart' as http;
 
 void main() {
   test('Fetch and display Soya App API responses', () async {
-    const baseUrl = 'https://soya-farmer-1.onrender.com/api';
+    // const baseUrl = 'https://soya-farmer-1.onrender.com/api';
+  const baseUrl = 'http://59.94.35.174:8081';
+
 
     final candidates = [
       {
@@ -38,7 +40,7 @@ void main() {
       },
     ];
 
-    String? vendorToken;
+    String? vendorToken; 
 
     for (var cand in candidates) {
       if (vendorToken != null) break;
