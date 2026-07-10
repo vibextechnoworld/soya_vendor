@@ -1720,7 +1720,7 @@ class _BillPrintData {
         bill.ratePerUnit ??
         bill.items?.firstOrNull?.rate ??
         0;
-    final actualRateVal = standardRate ?? finalRate;
+    final actualRateVal = calc?.ratePerUnit ?? bill.ratePerUnit ?? standardRate ?? 0;
     final totalPayable =
         calc?.recalculatedTotal ?? bill.netPayable ?? bill.totalAmount ?? 0;
     final advance = (bill.advancedAmount != null && bill.advancedAmount! > 0)

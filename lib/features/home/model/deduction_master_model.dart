@@ -61,7 +61,7 @@ class DeductionMaster {
       baseAmount: json['baseAmount']?.toDouble(),
       formulaExpression: json['formulaExpression'],
       persent: json['persent']?.toDouble(),
-      isActive: json['isActive'],
+      isActive: json['isActive'] == true,
       createdBy: json['createdBy'],
       createdAt: json['createdAt'],
       updatedAt: json['updatedAt'],
