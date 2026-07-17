@@ -598,9 +598,17 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
               columns: [
                 _buildColumn("Profile"),
                 _buildColumn("Farmer Name"),
-                _buildColumn("Date"),
+                _buildColumn("Transaction Date"),
+                _buildColumn("Kissan ID"),
+                _buildColumn("KP-No"),
+                _buildColumn("Gross Weight"),
+                _buildColumn("Bag Weight"),
                 _buildColumn("Net Weight"),
+                _buildColumn("Purchase Rate"),
                 _buildColumn("Total Amount"),
+                // _buildColumn("Moisture"),
+                // _buildColumn("FM"),
+                // _buildColumn("Damage"),
                 _buildColumn("Bill Status"),
                 _buildColumn("Payment Status"),
                 _buildColumn("Location"),
@@ -612,22 +620,26 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                 final date =
                     rawDate.contains('T') ? rawDate.split('T')[0] : rawDate;
 
-                // Use new specific fields if available, otherwise fallback to calculations
-                final quantityValue = bill.primaryQuantity ??
-                    bill.items?.fold<double>(
-                        0,
-                        (sum, item) =>
-                            sum + (item.quantity?.toDouble() ?? 0)) ??
-                    0.0;
                 final unit = bill.primaryUnit ??
                     (bill.items?.isNotEmpty == true
                         ? bill.items!.first.unit
                         : "KG");
-                final netWeightStr =
-                    "${quantityValue.toStringAsFixed(2)} $unit";
 
+                final grossValue = bill.primaryQuantity?.toDouble() ?? 0.0;
+                final bagValue = (bill.goniWeight ?? 0).toDouble();
+                final netValue = (grossValue - bagValue).clamp(0, grossValue);
+                final grossStr = "${grossValue.toStringAsFixed(2)} $unit";
+                final bagStr = "${bagValue.toStringAsFixed(2)} $unit";
+                final netStr = "${netValue.toStringAsFixed(2)} $unit";
+
+                final rateVal = bill.ratePerUnit ?? 0;
                 final amount = bill.netPayable ?? bill.totalAmount ?? 0;
                 final status = bill.status ?? "Pending";
+
+                final deductions = bill.deductions;
+                final moistureVal = _labDeductionVal(deductions, 'moisture');
+                final fmVal = _labDeductionVal(deductions, 'fm');
+                final damageVal = _labDeductionVal(deductions, 'damage');
 
                 return DataRow(
                   cells: [
@@ -639,9 +651,20 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                     )),
                     DataCell(_buildNameCell(farmerName)),
                     DataCell(Text(date, style: _cellStyle())),
-                    DataCell(Text(netWeightStr, style: _cellStyle())),
+                    DataCell(Text(bill.farmer?.id ?? "N/A",
+                        style: _cellStyle())),
+                    DataCell(Text(bill.billNo ?? bill.grnNo ?? "N/A",
+                        style: _cellStyle())),
+                    DataCell(Text(grossStr, style: _cellStyle())),
+                    DataCell(Text(bagStr, style: _cellStyle())),
+                    DataCell(Text(netStr, style: _cellStyle())),
+                    DataCell(Text("₹${rateVal.toStringAsFixed(2)}",
+                        style: _cellStyle())),
                     DataCell(Text("₹$amount",
                         style: _cellStyle(color: primeryColor, isBold: true))),
+                    // DataCell(Text(moistureVal, style: _cellStyle())),
+                    // DataCell(Text(fmVal, style: _cellStyle())),
+                    // DataCell(Text(damageVal, style: _cellStyle())),
                     DataCell(_buildStatusBadge(status)),
                     DataCell(_buildPaymentStatusBadge(bill)),
                     DataCell(
@@ -667,7 +690,6 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                               color: appColor, size: 18.sp),
                         ),
                         onOpened: () {
-                          // Ensure search field is unfocused when menu opens
                           if (_searchFocusNode.hasFocus) {
                             _searchFocusNode.unfocus();
                           }
@@ -743,6 +765,34 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
         ),
       ),
     );
+  }
+
+  String _labDeductionVal(List<BillDeduction>? deductions, String code) {
+    if (deductions == null || deductions.isEmpty) return "-";
+    for (final d in deductions) {
+      if (d.deductedInputs?.containsKey(code) == true) {
+        final val = d.deductedInputs![code];
+        if (val != null) return (val as num).toStringAsFixed(2);
+      }
+      if (d.deductedAmounts?.containsKey(code) == true) {
+        final val = d.deductedAmounts![code];
+        if (val != null) return (val as num).toStringAsFixed(2);
+      }
+      if (d.variableDetails?.isNotEmpty == true) {
+        for (final detail in d.variableDetails!) {
+          final detailCode = detail.code ?? detail.label;
+          if (detailCode == code && detail.deducted != null) {
+            return detail.deducted!.toStringAsFixed(2);
+          }
+        }
+      }
+      if ((d.label?.toLowerCase().contains(code) == true ||
+              d.masterId?.toLowerCase().contains(code) == true) &&
+          d.value != null) {
+        return d.value!.toStringAsFixed(2);
+      }
+    }
+    return "-";
   }
 
   Widget _buildNameCell(String name) {

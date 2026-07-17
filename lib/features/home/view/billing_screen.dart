@@ -388,16 +388,16 @@ class _BillingScreenState extends State<BillingScreen> {
 
                         // STEP 0: DRAFT CREATION
                         if (_currentStep == 0) ...[
-                          _buildFieldLabel('Search Farmer By'),
-                          Row(
-                            children: [
-                              _buildSearchTypeRadioButton(
-                                  controller, FarmerSearchType.name, 'Name'),
-                              SizedBox(width: 20.w),
-                              _buildSearchTypeRadioButton(controller,
-                                  FarmerSearchType.aadhaar, 'Aadhaar No.'),
-                            ],
-                          ),
+                          _buildFieldLabel('Search Farmer'),
+                          // Row(
+                          //   children: [
+                          //     _buildSearchTypeRadioButton(
+                          //         controller, FarmerSearchType.name, 'Name'),
+                          //     SizedBox(width: 20.w),
+                          //     _buildSearchTypeRadioButton(controller,
+                          //         FarmerSearchType.aadhaar, 'Aadhaar No.'),
+                          //   ],
+                          // ),
                           SizedBox(height: 10.h),
                           _buildFarmerSearchField(controller),
                           if (controller.selectedFarmer != null) ...[
@@ -1149,33 +1149,33 @@ class _BillingScreenState extends State<BillingScreen> {
     );
   }
 
-  Widget _buildSearchTypeRadioButton(
-      BillingController controller, FarmerSearchType value, String label) {
-    return InkWell(
-      onTap: () {
-        controller.setSearchType(value);
-        _farmerNameController.clear();
-      },
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Radio<FarmerSearchType>(
-            value: value,
-            groupValue: controller.searchType,
-            activeColor: primeryColor,
-            onChanged: (val) {
-              if (val != null) {
-                controller.setSearchType(val);
-                _farmerNameController.clear();
-              }
-            },
-          ),
-          Text(label,
-              style: TextStyle(fontSize: 14.sp, fontFamily: FontFamily.jost)),
-        ],
-      ),
-    );
-  }
+  // Widget _buildSearchTypeRadioButton(
+  //     BillingController controller, FarmerSearchType value, String label) {
+  //   return InkWell(
+  //     onTap: () {
+  //       controller.setSearchType(value);
+  //       _farmerNameController.clear();
+  //     },
+  //     child: Row(
+  //       mainAxisSize: MainAxisSize.min,
+  //       children: [
+  //         Radio<FarmerSearchType>(
+  //           value: value,
+  //           groupValue: controller.searchType,
+  //           activeColor: primeryColor,
+  //           onChanged: (val) {
+  //             if (val != null) {
+  //               controller.setSearchType(val);
+  //               _farmerNameController.clear();
+  //             }
+  //           },
+  //         ),
+  //         Text(label,
+  //             style: TextStyle(fontSize: 14.sp, fontFamily: FontFamily.jost)),
+  //       ],
+  //     ),
+  //   );
+  // }
 
   Widget _buildGoniTypeDropdown(BillingController controller) {
     return Container(
@@ -1235,9 +1235,6 @@ class _BillingScreenState extends State<BillingScreen> {
   }
 
   Widget _buildFarmerSearchField(BillingController controller) {
-    final hintText = controller.searchType == FarmerSearchType.name
-        ? 'Search by name'
-        : 'Search by Aadhaar no.';
     return Container(
       height: 48.h,
       decoration: BoxDecoration(
@@ -1252,17 +1249,9 @@ class _BillingScreenState extends State<BillingScreen> {
         controller: _farmerNameController,
         focusNode: _farmerFocusNode,
         onChanged: (value) => controller.onSearchChanged(value),
-        keyboardType: controller.searchType == FarmerSearchType.aadhaar
-            ? TextInputType.number
-            : TextInputType.text,
-        inputFormatters: controller.searchType == FarmerSearchType.aadhaar
-            ? [
-                FilteringTextInputFormatter.digitsOnly,
-                LengthLimitingTextInputFormatter(12),
-              ]
-            : [],
+        keyboardType: TextInputType.text,
         decoration: InputDecoration(
-          hintText: hintText,
+          hintText: 'Search farmer',
           hintStyle: TextStyle(
               fontSize: 14.sp,
               fontFamily: FontFamily.jost,
