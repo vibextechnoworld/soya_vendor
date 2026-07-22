@@ -78,22 +78,36 @@ class _BillingScreenState extends State<BillingScreen> {
 
       // Pre-fill for Update
       if (isEditing && _billingController.selectedBillDetails != null) {
+        _isEditingDraft = true;
         final bill = _billingController.selectedBillDetails!;
         _farmerNameController.text = bill.farmer?.name ?? '';
-        if (bill.items?.isNotEmpty ?? false) {
-          final item = bill.items!.first;
-          _numBagsController.text = item.bagCount?.toString() ?? '';
-          _rateController.text = item.rate?.toString() ?? '';
-          _netWeightController.text = item.quantity?.toString() ?? '';
-          _vehicleNumberController.text = bill.vehicleNumber ?? '';
-          _driverNameController.text = bill.driverName ?? '';
+        _netWeightController.text =
+            ((bill.primaryQuantity ?? bill.items?.firstOrNull?.quantity ?? 0) * 100)
+                .toString();
+        _rateController.text =
+            (bill.ratePerUnit ?? bill.items?.firstOrNull?.rate ?? 0)
+                .toString();
+        _numBagsController.text =
+            (bill.bagCount ?? bill.items?.firstOrNull?.bagCount ?? 0)
+                .toString();
+        _vehicleNumberController.text = bill.vehicleNumber ?? '';
+        _driverNameController.text = bill.driverName ?? '';
+        _billingController.restoreEditingState(bill);
+
+        // Sync _actualQualityValues so deduction calculation uses restored values
+        for (final entry
+            in _billingController.deductionVariableValues.entries) {
+          _billingController.updateQualityValue(entry.key, entry.value);
         }
       }
     });
   }
 
+  bool _isEditingDraft = false;
+
   void _onBillingControllerUpdate() {
     if (!mounted) return;
+    if (_isEditingDraft) return;
     if (_billingController.selectedQuality != null) {
       _rateController.text =
           (_billingController.selectedQuality!.rate ?? 0).toString();
@@ -140,6 +154,7 @@ class _BillingScreenState extends State<BillingScreen> {
     for (var controller in _qualityControllers.values) {
       controller.dispose();
     }
+    _billingController.resetForNewBill();
     _farmerFocusNode.dispose();
     _qualityDebounce?.cancel();
     super.dispose();
@@ -1855,6 +1870,13 @@ class _BillingScreenState extends State<BillingScreen> {
               // Ensure we have a controller for this variable
               if (!_qualityControllers.containsKey(code)) {
                 _qualityControllers[code] = TextEditingController();
+                // Pre-fill from restored deduction values
+                final restored = controller.deductionVariableValues[code] ??
+                    controller.deductionVariableValues[variable.label];
+                if (restored != null && restored > 0) {
+                  _qualityControllers[code]!.text = restored.toStringAsFixed(2);
+                  controller.updateQualityValue(code, restored);
+                }
               }
 
               final rowController = _qualityControllers[code]!;

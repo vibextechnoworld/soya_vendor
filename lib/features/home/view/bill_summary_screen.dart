@@ -13,6 +13,7 @@ import 'package:soya_app/core/widgets/tost_message.dart';
 import 'package:soya_app/features/home/controller/billing_controller.dart';
 import 'package:soya_app/features/home/model/bill_model.dart';
 import 'package:soya_app/features/home/model/goni_type_model.dart';
+import 'package:soya_app/routes/app_routes.dart';
 import 'package:soya_app/util/colors.dart';
 import 'package:soya_app/util/font_family.dart';
 import 'package:soya_app/features/bottom_navigation_bar/controller/bottom_navbar_controller.dart';
@@ -190,6 +191,8 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                         ),
                         SizedBox(height: 20.h),
                         if (bill.status == 'DRAFT') ...[
+                          _buildEditDraftButton(context, controller, bill),
+                          SizedBox(height: 12.h),
                           _buildFinalizeButton(context, controller),
                         ] else ...[
                           _buildReturnBagsOption(context, controller, bill),
@@ -1214,6 +1217,41 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
     );
   }
 
+  Widget _buildEditDraftButton(
+    BuildContext context,
+    BillingController controller,
+    BillModel bill,
+  ) {
+    return SizedBox(
+      width: double.infinity,
+      height: 50.h,
+      child: OutlinedButton.icon(
+        onPressed: () async {
+          await controller.fetchBillDetails(widget.billId);
+          controller.setEditingBillId(widget.billId);
+          if (!context.mounted) return;
+          Navigator.pushReplacementNamed(context, AppRoutes.billing);
+        },
+        icon: Icon(Icons.edit, size: 18.sp),
+        label: Text(
+          "Edit Draft",
+          style: TextStyle(
+            fontSize: 16.sp,
+            fontWeight: FontWeight.bold,
+            fontFamily: FontFamily.jost,
+          ),
+        ),
+        style: OutlinedButton.styleFrom(
+          foregroundColor: primeryColor,
+          side: BorderSide(color: primeryColor),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(8.r),
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildFinalizeButton(
     BuildContext context,
     BillingController controller,
@@ -1273,9 +1311,14 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                   );
 
                   // 4. Navigate away after dialog is closed
+                  final wasEditing = controller.editingBillId != null;
                   controller.reset(); // Clear all billing data
                   botNav.updateFormView(FormView.selection);
                   nav.pop();
+                  // If we came from Edit Draft, there's an extra BillingScreen on the stack
+                  if (wasEditing && nav.canPop()) {
+                    nav.pop();
+                  }
                 }
               },
         style: ElevatedButton.styleFrom(

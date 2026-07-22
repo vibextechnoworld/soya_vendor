@@ -179,6 +179,38 @@ class BillingController extends ChangeNotifier {
   Map<String, double> _deductionVariableValues = {};
   Map<String, double> get deductionVariableValues => _deductionVariableValues;
 
+  /// Remap token-keyed deduction values to code-keyed based on the selected master's formula expression.
+  /// Server stores values with token keys (e.g. "Moisture") but UI uses code keys (e.g. "moisture").
+  void _remapDeductionVariableValues() {
+    if (_selectedVariationMaster == null) return;
+    final master = _selectedVariationMaster!;
+    if (master.variables == null || master.formulaExpression == null) return;
+
+    final tokens = master.formulaExpression!
+        .split(RegExp(r'[\+\*\-\/\s]'))
+        .where((t) => t.trim().isNotEmpty && !RegExp(r'^\d+$').hasMatch(t))
+        .map((t) => t.trim())
+        .toList();
+
+    bool hadMismatch = false;
+    for (int i = 0; i < master.variables!.length; i++) {
+      final code = master.variables![i].code;
+      if (code == null || code.isEmpty) continue;
+      final token = (i < tokens.length) ? tokens[i] : null;
+
+      // If code-key already has value, keep it
+      if (_deductionVariableValues.containsKey(code)) continue;
+
+      // Try to find value under token key
+      if (token != null && _deductionVariableValues.containsKey(token)) {
+        _deductionVariableValues[code] = _deductionVariableValues[token]!;
+        _actualQualityValues[code] = _deductionVariableValues[token]!;
+        hadMismatch = true;
+      }
+    }
+    if (hadMismatch) notifyListeners();
+  }
+
   // Allowed Quality Values (Fetched from API with Code-based Mapping)
   double allowedValueByCode(String code,
       {DeductionMaster? master, double defaultValue = 0.0}) {
@@ -265,6 +297,7 @@ class BillingController extends ChangeNotifier {
 
   String? _editingBillId;
   String? get editingBillId => _editingBillId;
+  void setEditingBillId(String? id) => _editingBillId = id;
 
   CalculationDetails? _calculationDetails;
   CalculationDetails? get calculationDetails =>
@@ -405,7 +438,7 @@ class BillingController extends ChangeNotifier {
             .map((e) => DeductionMaster.fromJson(e))
             .toList();
 
-        // Set default selected variation (if any exists)
+        // Set default selected variation
         if (_deductionMasters
             .any((m) => m.type == "FORMULA" && m.isActive == true)) {
           final firstFormula = _deductionMasters
@@ -415,7 +448,13 @@ class BillingController extends ChangeNotifier {
             _selectedVariationValue = firstFormula.variableValues!.first;
           }
         }
-        _deductionVariableValues.clear();
+        // Only clear values for new bills (preserve restored values when editing)
+        if (_editingBillId == null) {
+          _deductionVariableValues.clear();
+        } else {
+          // Remap token-keyed deduction values to code-keyed for editing
+          _remapDeductionVariableValues();
+        }
       }
     } catch (e) {
       debugPrint('Error fetching deduction masters: $e');
@@ -1536,6 +1575,71 @@ class BillingController extends ChangeNotifier {
     _isReturnBagsLoading = false;
 
     if (_searchDebounce?.isActive ?? false) _searchDebounce!.cancel();
+    notifyListeners();
+  }
+
+  /// Restore controller state from a fetched bill for editing.
+  void restoreEditingState(BillModel bill) {
+    if (bill.billDate != null) {
+      try {
+        _selectedBillingDate = DateTime.parse(bill.billDate!);
+      } catch (_) {}
+    }
+    _vehicleNumber = bill.vehicleNumber;
+    _driverName = bill.driverName;
+    _selectedQuality = QualityRateData(
+      quality: 'draft_rate',
+      rate: bill.ratePerUnit?.toInt() ?? 0,
+    );
+
+    // Restore bags
+    if (bill.goniType != null) {
+      _selectedGoniType = bill.goniType;
+    }
+    if (bill.gonis?.isNotEmpty == true) {
+      _selectedBags = bill.gonis!.map((goni) {
+        final type = goni.goniType ?? _selectedGoniType ??
+            GoniType(id: goni.goniTypeId, name: 'Bag', weightPerBag: 0);
+        return SelectedBag(goniType: type, bagCount: goni.bagCount ?? 0);
+      }).toList();
+    }
+
+    // Restore deduction variable values from bill deductions
+    if (bill.deductions?.isNotEmpty == true) {
+      _deductionVariableValues = {};
+      for (final d in bill.deductions!) {
+        final sources = [
+          d.customInputs,
+          d.actualInputs,
+          d.defaultInputs,
+          d.allowedInputs,
+        ];
+        for (final source in sources) {
+          if (source != null && source.isNotEmpty) {
+            for (final entry in source.entries) {
+              final value = entry.value;
+              if (value is num) {
+                _deductionVariableValues[entry.key] = value.toDouble();
+              } else if (value is String) {
+                final parsed = double.tryParse(value);
+                if (parsed != null) {
+                  _deductionVariableValues[entry.key] = parsed;
+                }
+              }
+            }
+          }
+        }
+        if (d.variableDetails?.isNotEmpty == true) {
+          for (final detail in d.variableDetails!) {
+            final code = detail.code ?? detail.label ?? '';
+            if (code.isNotEmpty && detail.custom != null) {
+              _deductionVariableValues[code] = detail.custom!.toDouble();
+            }
+          }
+        }
+      }
+    }
+
     notifyListeners();
   }
 

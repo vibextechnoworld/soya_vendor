@@ -222,13 +222,13 @@ class PdfInvoiceService {
                 _thermalAmountBlock(ttf, ttfBold, data),
                 _thermalLine(),
                 _thermalCenter(ttfBold, 'WEIGHT DETAILS', size: 7),
-                _thermalRow(ttf, ttfBold, 'Gross Weight', '${data.grossKg} KG',
+                _thermalRow(ttf, ttfBold, 'Gross Weight', '${data.grossKg} QTL',
                     labelWidth: 75),
                 _thermalRow(
-                    ttf, ttfBold, 'Bag Deduction', '${data.bagDeductionKg} KG',
+                    ttf, ttfBold, 'Bag Deduction', '${data.bagDeductionKg} QTL',
                     labelWidth: 75),
                 _thermalLine(),
-                _thermalRow(ttf, ttfBold, 'Net Weight', '${data.netKg} KG',
+                _thermalRow(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL',
                     boldValue: true, labelWidth: 75),
                 _thermalLine(),
                 _thermalCenter(ttfBold, 'BAG DETAILS'),
@@ -439,11 +439,11 @@ class PdfInvoiceService {
         children: [
           _a4SectionTitle(ttfBold, 'WEIGHT SUMMARY'),
           pw.SizedBox(height: 8),
-          _a4AmountRow(ttf, ttfBold, 'Gross Weight', '${data.grossKg} KG'),
+          _a4AmountRow(ttf, ttfBold, 'Gross Weight', '${data.grossKg} QTL'),
           _a4AmountRow(ttf, ttfBold, 'Bag Weight (Deduction)',
-              '${data.bagDeductionKg} KG'),
+              '${data.bagDeductionKg} QTL'),
           _a4Dash(),
-          _a4AmountRow(ttf, ttfBold, 'Net Weight', '${data.netKg} KG',
+          _a4AmountRow(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL',
               bold: true),
           _a4Dash(),
           _a4AmountRow(
@@ -560,7 +560,7 @@ class PdfInvoiceService {
                     labelWidth: 96),
                 _a4InlineField(ttf, ttfBold, 'Vehicle No.', data.vehicleNo,
                     labelWidth: 96),
-                _a4InlineField(ttf, ttfBold, 'Net Weight', '${data.netKg} KG',
+                _a4InlineField(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL',
                     labelWidth: 96),
                 _a4InlineField(
                     ttf, ttfBold, 'Purchase Rate', 'Rs. ${data.rate} / Qtl',
@@ -1084,7 +1084,7 @@ class PdfInvoiceService {
               children: [
                 _a4ReturnField(ttf, ttfBold, 'Farmer Name', data.farmerName),
                 _a4ReturnField(ttf, ttfBold, 'Vehicle Number', data.vehicleNo),
-                _a4ReturnField(ttf, ttfBold, 'Net Weight', '${data.netKg} KG'),
+                _a4ReturnField(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL'),
                 _a4ReturnField(
                     ttf, ttfBold, 'Purchase Rate', 'Rs. ${data.rate} / Qtl'),
                 _a4ReturnField(
@@ -1481,7 +1481,7 @@ class PdfInvoiceService {
         children: [
           _thermalRow(ttf, ttfBold, 'Farmer Name', data.farmerName),
           _thermalRow(ttf, ttfBold, 'Vehicle No', data.vehicleNo),
-          _thermalRow(ttf, ttfBold, 'Net Weight', '${data.netKg} KG'),
+          _thermalRow(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL'),
           _thermalRow(ttf, ttfBold, 'Rate', 'Rs ${data.rate} / Qtl'),
           _thermalRow(ttf, ttfBold, 'Total Amount', 'Rs ${data.payableAmount}'),
           _thermalLine(),
@@ -1760,9 +1760,9 @@ class _BillPrintData {
       printedOn: DateFormat('dd/MM/yyyy hh:mm a').format(DateTime.now()),
       location: vendorLocation ?? _clean(bill.billLocation),
       vehicleNo: _clean(bill.vehicleNumber),
-      grossKg: _fmt(grossQtl * 100),
-      bagDeductionKg: _fmt(bagDeductionQtl * 100),
-      netKg: _fmt(netQtl * 100),
+      grossKg: _fmtPrecise(grossQtl),
+      bagDeductionKg: _fmtPrecise(bagDeductionQtl),
+      netKg: _fmtPrecise(netQtl),
       actualRate: _fmt(actualRateVal),
       payableAmount: _money(payable),
       payableRounded: payable.round(),
@@ -1809,8 +1809,7 @@ class _BillPrintData {
     } else {
       rows.add(['PP Bag (150 Gms)', '$totalBags']);
     }
-    rows.add(['Kaltani - 50 Kg', '0']);
-    rows.add(['Kaltani - 100 Kg', '0']);
+   
     return rows;
   }
 
