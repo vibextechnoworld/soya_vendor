@@ -955,7 +955,7 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
             ),
           _buildInfoRow(
             "Final Balance:",
-            "₹ ${balance.toStringAsFixed(2)}",
+            "₹ ${balance.round()}",
             bgColor: primeryColor,
             textColor: whiteColor,
             isBold: true,

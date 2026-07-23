@@ -1772,7 +1772,7 @@ class _BillPrintData {
       bagDeductionKg: _fmtPrecise(bagDeductionQtl),
       netKg: _fmtPrecise(netQtl),
       actualRate: _fmt(actualRateVal),
-      payableAmount: _money(payable),
+      payableAmount: '${payable.round()}',
       payableRounded: payable.round(),
       vendorName: vendorName ?? _clean(farmer?.vendorName),
       vendorMobile: vendorMobile ?? '',
