@@ -604,11 +604,11 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                 _buildColumn("Gross Weight"),
                 _buildColumn("Bag Weight"),
                 _buildColumn("Net Weight"),
+                _buildColumn("FM"),
+                _buildColumn("Damage"),
+                _buildColumn("Moisture"),
                 _buildColumn("Purchase Rate"),
                 _buildColumn("Total Amount"),
-                // _buildColumn("Moisture"),
-                // _buildColumn("FM"),
-                // _buildColumn("Damage"),
                 _buildColumn("Bill Status"),
                 _buildColumn("Payment Status"),
                 _buildColumn("Location"),
@@ -632,14 +632,14 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                 final bagStr = "${bagValue.toStringAsFixed(2)} $unit";
                 final netStr = "${netValue.toStringAsFixed(2)} $unit";
 
-                final rateVal = bill.ratePerUnit ?? 0;
+                final rateVal = bill.calculationDetails?.rateAfterLabDeductionRounded ?? bill.ratePerUnit ?? 0;
                 final amount = bill.netPayable ?? bill.totalAmount ?? 0;
                 final status = bill.status ?? "Pending";
 
                 final deductions = bill.deductions;
-                final moistureVal = _labDeductionVal(deductions, 'moisture');
-                final fmVal = _labDeductionVal(deductions, 'fm');
-                final damageVal = _labDeductionVal(deductions, 'damage');
+                final moistureVal = _customInputVal(deductions, 'Moisture');
+                final fmVal = _customInputVal(deductions, 'FM');
+                final damageVal = _customInputVal(deductions, 'Damage');
 
                 return DataRow(
                   cells: [
@@ -651,20 +651,22 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                     )),
                     DataCell(_buildNameCell(farmerName)),
                     DataCell(Text(date, style: _cellStyle())),
-                    DataCell(Text(bill.farmer?.id ?? "N/A",
+                    DataCell(Text((bill.farmer?.id != null && bill.farmer!.id!.length > 6)
+                        ? bill.farmer!.id!.substring(bill.farmer!.id!.length - 6)
+                        : (bill.farmer?.id ?? "N/A"),
                         style: _cellStyle())),
-                    DataCell(Text(bill.billNo ?? bill.grnNo ?? "N/A",
+                    DataCell(Text(bill.vendorBillSeq?.toString() ?? bill.billNo ?? bill.grnNo ?? "N/A",
                         style: _cellStyle())),
                     DataCell(Text(grossStr, style: _cellStyle())),
                     DataCell(Text(bagStr, style: _cellStyle())),
                     DataCell(Text(netStr, style: _cellStyle())),
+                    DataCell(Text(fmVal, style: _cellStyle())),
+                    DataCell(Text(damageVal, style: _cellStyle())),
+                    DataCell(Text(moistureVal, style: _cellStyle())),
                     DataCell(Text("₹${rateVal.toStringAsFixed(2)}",
                         style: _cellStyle())),
                     DataCell(Text("₹$amount",
                         style: _cellStyle(color: primeryColor, isBold: true))),
-                    // DataCell(Text(moistureVal, style: _cellStyle())),
-                    // DataCell(Text(fmVal, style: _cellStyle())),
-                    // DataCell(Text(damageVal, style: _cellStyle())),
                     DataCell(_buildStatusBadge(status)),
                     DataCell(_buildPaymentStatusBadge(bill)),
                     DataCell(
@@ -790,6 +792,24 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
               d.masterId?.toLowerCase().contains(code) == true) &&
           d.value != null) {
         return d.value!.toStringAsFixed(2);
+      }
+    }
+    return "-";
+  }
+
+  String _customInputVal(List<BillDeduction>? deductions, String key) {
+    if (deductions == null || deductions.isEmpty) return "-";
+    for (final d in deductions) {
+      if (d.customInputs != null && d.customInputs!.containsKey(key)) {
+        final val = d.customInputs![key];
+        if (val != null) return '$val';
+      }
+      if (d.payload != null) {
+        final customInputs = d.payload!['customInputs'];
+        if (customInputs is Map && customInputs.containsKey(key)) {
+          final val = customInputs[key];
+          if (val != null) return '$val';
+        }
       }
     }
     return "-";

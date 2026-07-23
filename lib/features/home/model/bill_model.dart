@@ -134,6 +134,7 @@ class BillModel {
   final String? id;
   final String? grnNo;
   final String? billNo;
+  final int? vendorBillSeq;
   final String? billDate;
   final String? vendorId;
   final String? farmerId;
@@ -188,6 +189,7 @@ class BillModel {
     this.id,
     this.grnNo,
     this.billNo,
+    this.vendorBillSeq,
     this.billDate,
     this.vendorId,
     this.farmerId,
@@ -228,6 +230,7 @@ class BillModel {
       rate: json['quality'] as String?,
       grnNo: json['grnNumber'] as String?,
       billNo: json['billNo'] as String?,
+      vendorBillSeq: (json['vendorBillSeq'] as num?)?.toInt(),
       billDate: json['billDate'] as String?,
       vendorId: json['vendorId'] as String?,
       farmerId: json['farmerId'] as String?,
@@ -286,6 +289,7 @@ class BillModel {
       'grnNumber': grnNo,
       'id': id,
       'billNo': billNo,
+      'vendorBillSeq': vendorBillSeq,
       'billDate': billDate,
       'vendorId': vendorId,
       'farmerId': farmerId,

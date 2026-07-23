@@ -820,7 +820,7 @@ class FarmerKycController with ChangeNotifier {
   Future<bool> uploadFarmerIdentificationDocuments({
     required BuildContext context,
     required String farmerId,
-    File? aadhaar,
+    List<File> aadhaarImages = const [],
     File? pan,
     File? license,
     String? panNo,
@@ -830,7 +830,6 @@ class FarmerKycController with ChangeNotifier {
     _errorMessage = null;
 
     try {
-      // Always use the plural documents endpoint and POST method as backend supports upserting.
       final url = ApiConstants.createFarmerDocuments
           .replaceAll('{{farmerId}}', farmerId);
 
@@ -838,12 +837,14 @@ class FarmerKycController with ChangeNotifier {
       if (panNo != null && panNo.isNotEmpty) fields['panNo'] = panNo;
 
       final List<http.MultipartFile> files = [];
-      if (aadhaar != null && await aadhaar.exists()) {
-        files.add(await http.MultipartFile.fromPath(
-          'AADHAAR',
-          aadhaar.path,
-          contentType: MediaType.parse(_getMimeType(aadhaar.path)),
-        ));
+      for (final img in aadhaarImages) {
+        if (await img.exists()) {
+          files.add(await http.MultipartFile.fromPath(
+            'AADHAAR',
+            img.path,
+            contentType: MediaType.parse(_getMimeType(img.path)),
+          ));
+        }
       }
 
       if (pan != null && await pan.exists()) {
@@ -916,7 +917,7 @@ class FarmerKycController with ChangeNotifier {
     required BuildContext context,
     required String farmerId,
     required String type,
-    required File document,
+    required List<File> documents,
     String? area,
     bool isUpdate = false,
   }) async {
@@ -935,12 +936,14 @@ class FarmerKycController with ChangeNotifier {
       };
 
       final List<http.MultipartFile> files = [];
-      if (await document.exists()) {
-        files.add(await http.MultipartFile.fromPath(
-          'document',
-          document.path,
-          contentType: MediaType.parse(_getMimeType(document.path)),
-        ));
+      for (final doc in documents) {
+        if (await doc.exists()) {
+          files.add(await http.MultipartFile.fromPath(
+            'document',
+            doc.path,
+            contentType: MediaType.parse(_getMimeType(doc.path)),
+          ));
+        }
       }
 
       final response = await _apiService.multipartRequest(
@@ -984,7 +987,7 @@ class FarmerKycController with ChangeNotifier {
     required BuildContext context,
     required String farmerId,
     required String type,
-    required File document,
+    required List<File> documents,
     String? area,
     bool isUpdate = false,
   }) async {
@@ -992,7 +995,7 @@ class FarmerKycController with ChangeNotifier {
       context: context,
       farmerId: farmerId,
       type: type,
-      document: document,
+      documents: documents,
       area: area,
       isUpdate: isUpdate,
     );

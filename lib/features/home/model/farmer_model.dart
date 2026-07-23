@@ -47,6 +47,8 @@ class FarmerData {
   final String? createdAt;
   final int? totalKycDocuments;
   final int? totalLands;
+  final num? totalLandArea;
+  final num? quantitySold;
   final String? vendorName;
   final String? kycStatus;
   final String? kycRejectionReason;
@@ -70,6 +72,8 @@ class FarmerData {
     this.createdAt,
     this.totalKycDocuments,
     this.totalLands,
+    this.totalLandArea,
+    this.quantitySold,
     this.vendorName,
     this.kycStatus,
     this.kycRejectionReason,
@@ -95,6 +99,8 @@ class FarmerData {
       createdAt: json['createdAt'] as String?,
       totalKycDocuments: json['totalKycDocuments'] as int?,
       totalLands: json['totalLands'] as int?,
+      totalLandArea: json['totalLandArea'] as num?,
+      quantitySold: json['quantitySold'] as num?,
       vendorName: json['vendorName'] as String?,
       kycStatus: json['kycStatus'] as String?,
       kycRejectionReason: json['kycRejectionReason'] as String?,
@@ -129,6 +135,8 @@ class FarmerData {
       'createdAt': createdAt,
       'totalKycDocuments': totalKycDocuments,
       'totalLands': totalLands,
+      'totalLandArea': totalLandArea,
+      'quantitySold': quantitySold,
       'vendorName': vendorName,
       'kycStatus': kycStatus,
       'kycRejectionReason': kycRejectionReason,

@@ -314,6 +314,9 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
                 _buildColumn("Farmer Name"),
                 _buildColumn("Phone No"),
                 _buildColumn("Aadhaar"),
+                _buildColumn("Total Lands"),
+                _buildColumn("Total Land (acres)"),
+                _buildColumn("Quantity Sold"),
                 _buildColumn("KYC Status"),
                 _buildColumn("Actions"),
               ],
@@ -333,6 +336,9 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
                     DataCell(_buildNameCell(name)),
                     DataCell(Text(phone, style: _cellStyle())),
                     DataCell(Text(aadhaar, style: _cellStyle())),
+                    DataCell(Text('${farmer.totalLands ?? 0}', style: _cellStyle())),
+                    DataCell(Text('${farmer.totalLandArea ?? 0}', style: _cellStyle())),
+                    DataCell(Text('${farmer.quantitySold ?? 0}', style: _cellStyle())),
                     DataCell(_buildStatusBadge(
                         "Verified")), // Mock status for now as API model might not have it directly
                     DataCell(

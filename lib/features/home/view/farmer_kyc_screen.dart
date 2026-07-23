@@ -51,7 +51,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   // Document Controllers
   final _panNoController = TextEditingController();
   File? _profileImage;
-  File? _aadhaarImage;
+  List<File> _aadhaarImages = [];
   File? _panImage;
   File? _licenseImage;
 
@@ -60,11 +60,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   final _areaController = TextEditingController();
   final _landOwnerNameController = TextEditingController();
   final _landRelationTypeController = TextEditingController();
-  File? _landDocument;
+  List<File> _landDocuments = [];
   final _bloodRelationAreaController = TextEditingController();
   final _bloodRelationOwnerNameController = TextEditingController();
   final _bloodRelationRelationTypeController = TextEditingController();
-  File? _bloodRelationLandDocument;
+  List<File> _bloodRelationLandDocuments = [];
 
   // Land Address Controllers (New)
   final _landVillageController = TextEditingController();
@@ -90,11 +90,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
 
   // Remote Image URLs for already uploaded documents
   String? _profileImageUrl;
-  String? _aadhaarImageUrl;
+  List<String> _aadhaarImageUrls = [];
   String? _panImageUrl;
   String? _licenseImageUrl;
-  String? _landDocumentUrl;
-  String? _bloodRelationLandDocumentUrl;
+  List<String> _landDocumentUrls = [];
+  List<String> _bloodRelationLandDocumentUrls = [];
   String? _passbookImageUrl;
 
   bool _showBloodRelationLand = false;
@@ -253,10 +253,13 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
 
         if (controller.fetchedDocuments != null) {
           // Extract identification images and panNo if in docs
-          final aadhaarDoc = controller.fetchedDocuments!
+          final aadhaarDocs = controller.fetchedDocuments!
               .where((d) => d.type == 'AADHAAR')
-              .firstOrNull;
-          _aadhaarImageUrl = aadhaarDoc?.imageUrl;
+              .toList();
+          _aadhaarImageUrls = aadhaarDocs
+              .map((d) => d.imageUrl ?? '')
+              .where((url) => url.isNotEmpty)
+              .toList();
 
           final panDoc = controller.fetchedDocuments!
               .where((d) => d.type == 'PAN')
@@ -271,16 +274,20 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
               .firstOrNull;
           _licenseImageUrl = licenseDoc?.imageUrl;
 
-          // Land doc from documents list
-          final landDoc = controller.fetchedDocuments!
+          // Land docs from documents list
+          final landDocs = controller.fetchedDocuments!
               .where((d) => d.type == 'LAND_712' || d.type == 'LAND')
-              .firstOrNull;
-          if (landDoc != null) {
+              .toList();
+          if (landDocs.isNotEmpty) {
             if (_landTypeController.text.isEmpty ||
                 _landTypeController.text == 'LAND_712') {
-              _landTypeController.text = landDoc.type ?? 'OWN';
+              _landTypeController.text = landDocs.first.type ?? 'OWN';
             }
-            _landDocumentUrl = landDoc.imageUrl;
+            _landDocumentUrls = landDocs
+                .map((d) => d.imageUrl)
+                .where((url) => url != null && url.isNotEmpty)
+                .cast<String>()
+                .toList();
           }
         }
 
@@ -289,7 +296,12 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
           if (_areaController.text.isEmpty) {
             _fillLandData(controller.fetchedLands!.first);
           }
-          _landDocumentUrl = controller.fetchedLands!.first.documentUrl;
+          // Collect all land document URLs from fetched lands
+          for (final land in controller.fetchedLands!) {
+            if (land.documentUrl != null && land.documentUrl!.isNotEmpty) {
+              _landDocumentUrls.add(land.documentUrl!);
+            }
+          }
 
           // Check for Blood Relation land in searched lands
           final bloodLand = controller.fetchedLands!
@@ -314,7 +326,10 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
               _bloodRelationRelationTypeController.text =
                   bloodLand.relationType ?? '';
             }
-            _bloodRelationLandDocumentUrl = bloodLand.documentUrl;
+            if (bloodLand.documentUrl != null &&
+                bloodLand.documentUrl!.isNotEmpty) {
+              _bloodRelationLandDocumentUrls = [bloodLand.documentUrl!];
+            }
             _showBloodRelationLand = true;
           }
         }
@@ -484,19 +499,19 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
           if (type == 'PROFILE') {
             _profileImage = persistentFile;
           } else if (type == 'AADHAAR') {
-            _aadhaarImage = persistentFile;
+            _aadhaarImages.add(persistentFile);
           } else if (type == 'PAN') {
             _panImage = persistentFile;
           } else if (type == 'LICENSE') {
             _licenseImage = persistentFile;
           } else if (type == 'LAND' || type == 'LAND_712') {
-            _landDocument = persistentFile;
+            _landDocuments.add(persistentFile);
           } else if (type == 'PASSBOOK') {
             _passbookImage = persistentFile;
           } else if (type == 'BLOOD_RELATION' ||
               type == 'BLOOD_RELATION_LAND' ||
               type == 'BLOOD_RELATION_712') {
-            _bloodRelationLandDocument = persistentFile;
+            _bloodRelationLandDocuments.add(persistentFile);
           }
         });
       }
@@ -622,7 +637,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       final isUpdate = controller.isIdSubmitted;
 
       // Only require Aadhaar image for new submission
-      if (!isUpdate && _aadhaarImage == null && _aadhaarImageUrl == null) {
+      if (!isUpdate && _aadhaarImages.isEmpty && _aadhaarImageUrls.isEmpty) {
         if (mounted) {
           ToastMessage.show(
             context,
@@ -638,7 +653,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       final currentPanNo = _panNoController.text.trim();
 
       bool hasNewFiles =
-          _aadhaarImage != null || _panImage != null || _licenseImage != null;
+          _aadhaarImages.isNotEmpty || _panImage != null || _licenseImage != null;
       bool panNoChanged = currentPanNo != existingPanNo;
 
       bool success = true;
@@ -646,7 +661,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
         success = await controller.uploadFarmerIdentificationDocuments(
           context: context,
           farmerId: farmerId,
-          aadhaar: _aadhaarImage,
+          aadhaarImages: _aadhaarImages,
           pan: _panImage,
           license: _licenseImage,
           panNo: currentPanNo,
@@ -676,7 +691,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       bool primarySuccess = false;
 
       if (landType == 'LAND_712') {
-        if (_landDocument == null && _landDocumentUrl == null) {
+        if (_landDocuments.isEmpty && _landDocumentUrls.isEmpty) {
           if (mounted) {
             ToastMessage.show(context,
                 message: 'Please upload land document (7/12)', isError: true);
@@ -684,13 +699,12 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
           return;
         }
 
-        if (_landDocument != null) {
-          // Uploading new document
+        if (_landDocuments.isNotEmpty) {
           primarySuccess = await controller.uploaddocuments(
             context: context,
             farmerId: farmerId,
             type: 'LAND_712',
-            document: _landDocument!,
+            documents: _landDocuments,
             area: _convertInputHectareToAcreStr(_areaController.text),
             isUpdate: controller.isLandSubmitted,
           );
@@ -711,7 +725,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
         final landController =
             Provider.of<LandController>(context, listen: false);
 
-        if (_landDocument == null && _landDocumentUrl == null) {
+        if (_landDocuments.isEmpty && _landDocumentUrls.isEmpty) {
           if (mounted) {
             ToastMessage.show(context,
                 message: 'Please upload land document', isError: true);
@@ -719,7 +733,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
           return;
         }
 
-        if (_landDocument != null) {
+        if (_landDocuments.isNotEmpty) {
           primarySuccess = await landController.addFarmerLands(
             context: context,
             farmerId: farmerId,
@@ -734,7 +748,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             relationType: landType == 'BLOOD_RELATION'
                 ? _landRelationTypeController.text.trim().toUpperCase()
                 : null,
-            landImage: _landDocument!,
+            landImages: _landDocuments,
           );
         } else {
           // No new image selected, but we have text edits, so update text fields
@@ -762,11 +776,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       bool bloodSuccess = true; // Default to true if not applicable
 
       if (_bloodRelationAreaController.text.trim().isNotEmpty ||
-          _bloodRelationLandDocument != null) {
+          _bloodRelationLandDocuments.isNotEmpty) {
         final landController =
             Provider.of<LandController>(context, listen: false);
 
-        if (_bloodRelationLandDocument != null) {
+        if (_bloodRelationLandDocuments.isNotEmpty) {
           bloodSuccess = await landController.addFarmerLands(
             context: context,
             farmerId: farmerId,
@@ -779,11 +793,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             landOwnerName: _bloodRelationOwnerNameController.text.trim(),
             relationType:
                 _bloodRelationRelationTypeController.text.trim().toUpperCase(),
-            landImage: _bloodRelationLandDocument!,
+            landImages: _bloodRelationLandDocuments,
           );
         } else if (_bloodRelationAreaController.text.trim().isNotEmpty &&
-            _bloodRelationLandDocument == null &&
-            _bloodRelationLandDocumentUrl == null) {
+            _bloodRelationLandDocuments.isEmpty &&
+            _bloodRelationLandDocumentUrls.isEmpty) {
           if (mounted) {
             ToastMessage.show(context,
                 message: 'Please upload blood relation land document',
@@ -1237,11 +1251,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
 
   bool _hasAnyLandData() {
     return _areaController.text.trim().isNotEmpty ||
-        _landDocument != null ||
-        _landDocumentUrl != null ||
+        _landDocuments.isNotEmpty ||
+        _landDocumentUrls.isNotEmpty ||
         _bloodRelationAreaController.text.trim().isNotEmpty ||
-        _bloodRelationLandDocument != null ||
-        _bloodRelationLandDocumentUrl != null ||
+        _bloodRelationLandDocuments.isNotEmpty ||
+        _bloodRelationLandDocumentUrls.isNotEmpty ||
         _landOwnerNameController.text.trim().isNotEmpty ||
         _landRelationTypeController.text.trim().isNotEmpty;
   }
@@ -1276,19 +1290,19 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
 
     setState(() {
       _profileImage = null;
-      _aadhaarImage = null;
+      _aadhaarImages = [];
       _panImage = null;
       _licenseImage = null;
-      _landDocument = null;
-      _bloodRelationLandDocument = null;
+      _landDocuments = [];
+      _bloodRelationLandDocuments = [];
       _passbookImage = null;
 
       _profileImageUrl = null;
-      _aadhaarImageUrl = null;
+      _aadhaarImageUrls = [];
       _panImageUrl = null;
       _licenseImageUrl = null;
-      _landDocumentUrl = null;
-      _bloodRelationLandDocumentUrl = null;
+      _landDocumentUrls = [];
+      _bloodRelationLandDocumentUrls = [];
       _passbookImageUrl = null;
 
       _showBloodRelationLand = false;
@@ -1376,19 +1390,19 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     _branchNameController.clear();
 
     _profileImage = null;
-    _aadhaarImage = null;
+    _aadhaarImages = [];
     _panImage = null;
     _licenseImage = null;
-    _landDocument = null;
-    _bloodRelationLandDocument = null;
+    _landDocuments = [];
+    _bloodRelationLandDocuments = [];
     _passbookImage = null;
 
     _profileImageUrl = null;
-    _aadhaarImageUrl = null;
+    _aadhaarImageUrls = [];
     _panImageUrl = null;
     _licenseImageUrl = null;
-    _landDocumentUrl = null;
-    _bloodRelationLandDocumentUrl = null;
+    _landDocumentUrls = [];
+    _bloodRelationLandDocumentUrls = [];
     _passbookImageUrl = null;
 
     _showBloodRelationLand = false;
@@ -2292,10 +2306,12 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             ),
             SizedBox(height: 10.h),
             _buildFieldLabel('Aadhaar Card Photo *'),
-            _buildImageUpload(
-              onTap: () => _pickImage('AADHAAR'),
-              selectedFile: _aadhaarImage,
-              remoteUrl: _aadhaarImageUrl,
+            _buildMultiImageUpload(
+              onAdd: () => _pickImage('AADHAAR'),
+              selectedFiles: _aadhaarImages,
+              remoteUrls: _aadhaarImageUrls,
+              onRemoveLocal: (index) => setState(() => _aadhaarImages.removeAt(index)),
+              onRemoveRemote: (index) => setState(() => _aadhaarImageUrls.removeAt(index)),
             ),
             SizedBox(height: 12.h),
             _buildFieldLabel('Pan Card (Optional)'),
@@ -2642,10 +2658,20 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             ],
             SizedBox(height: 10.h),
             _buildFieldLabel('Land Document Photo'),
-            _buildImageUpload(
-              onTap: () => _pickImage('LAND'),
-              selectedFile: _landDocument,
-              remoteUrl: _landDocumentUrl,
+            _buildMultiImageUpload(
+              onAdd: () => _pickImage('LAND'),
+              selectedFiles: _landDocuments,
+              remoteUrls: _landDocumentUrls,
+              onRemoveLocal: (index) {
+                setState(() {
+                  _landDocuments.removeAt(index);
+                });
+              },
+              onRemoveRemote: (index) {
+                setState(() {
+                  _landDocumentUrls.removeAt(index);
+                });
+              },
             ),
             SizedBox(height: 16.h),
             if (!_showBloodRelationLand)
@@ -2682,8 +2708,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                         _bloodRelationAreaController.clear();
                         _bloodRelationOwnerNameController.clear();
                         _bloodRelationRelationTypeController.clear();
-                        _bloodRelationLandDocument = null;
-                        // Note: Not clearing _bloodRelationLandDocumentUrl here to avoid accidental loss
+                        _bloodRelationLandDocuments = [];
+                        // Note: Not clearing _bloodRelationLandDocumentUrls here to avoid accidental loss
                         // but visibility will hide it.
                       });
                     },
@@ -2724,8 +2750,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                 validator: (value) {
                   if (_showBloodRelationLand &&
                       (_bloodRelationAreaController.text.trim().isNotEmpty ||
-                          _bloodRelationLandDocument != null ||
-                          _bloodRelationLandDocumentUrl != null)) {
+                          _bloodRelationLandDocuments.isNotEmpty ||
+                          _bloodRelationLandDocumentUrls.isNotEmpty)) {
                     if (value == null || value.isEmpty) {
                       return 'Please enter land owner name';
                     }
@@ -2740,8 +2766,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                 validator: (value) {
                   if (_showBloodRelationLand &&
                       (_bloodRelationAreaController.text.trim().isNotEmpty ||
-                          _bloodRelationLandDocument != null ||
-                          _bloodRelationLandDocumentUrl != null)) {
+                          _bloodRelationLandDocuments.isNotEmpty ||
+                          _bloodRelationLandDocumentUrls.isNotEmpty)) {
                     if (value == null || value.trim().isEmpty) {
                       return 'Please enter relation (e.g. FATHER, MOTHER)';
                     }
@@ -2769,10 +2795,20 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                 ),
               ],
               SizedBox(height: 10.h),
-              _buildImageUpload(
-                onTap: () => _pickImage('BLOOD_RELATION_LAND'),
-                selectedFile: _bloodRelationLandDocument,
-                remoteUrl: _bloodRelationLandDocumentUrl,
+              _buildMultiImageUpload(
+                onAdd: () => _pickImage('BLOOD_RELATION_LAND'),
+                selectedFiles: _bloodRelationLandDocuments,
+                remoteUrls: _bloodRelationLandDocumentUrls,
+                onRemoveLocal: (index) {
+                  setState(() {
+                    _bloodRelationLandDocuments.removeAt(index);
+                  });
+                },
+                onRemoveRemote: (index) {
+                  setState(() {
+                    _bloodRelationLandDocumentUrls.removeAt(index);
+                  });
+                },
               ),
             ],
           ],
@@ -3291,6 +3327,158 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                     )),
         ),
       ),
+    );
+  }
+
+  Widget _buildMultiImageUpload({
+    required VoidCallback onAdd,
+    required List<File> selectedFiles,
+    required List<String> remoteUrls,
+    required Function(int index) onRemoveLocal,
+    required Function(int index) onRemoveRemote,
+  }) {
+    final totalImages = selectedFiles.length + remoteUrls.length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        if (totalImages > 0)
+          SizedBox(
+            height: 150.h,
+            child: ListView.builder(
+              scrollDirection: Axis.horizontal,
+              itemCount: totalImages + 1,
+              itemBuilder: (context, index) {
+                if (index == totalImages) {
+                  // Add more button
+                  return GestureDetector(
+                    onTap: onAdd,
+                    child: Container(
+                      width: 120.w,
+                      margin: EdgeInsets.only(right: 8.w),
+                      decoration: BoxDecoration(
+                        color: primeryColor.withOpacity(0.05),
+                        borderRadius: BorderRadius.circular(8.r),
+                        border: Border.all(
+                          color: primeryColor.withOpacity(0.3),
+                          width: 1,
+                        ),
+                      ),
+                      child: Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Icon(Icons.add_photo_alternate_outlined,
+                                color: primeryColor, size: 30.sp),
+                            SizedBox(height: 4.h),
+                            Text(
+                              'Add More',
+                              style: TextStyle(
+                                fontSize: 11.sp,
+                                color: primeryColor,
+                                fontWeight: FontWeight.w600,
+                                fontFamily: FontFamily.jost,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                  );
+                }
+
+                final bool isLocal = index < selectedFiles.length;
+                final String? url = isLocal ? null : remoteUrls[index - selectedFiles.length];
+                String? fullUrl;
+                if (url != null && url.isNotEmpty) {
+                  if (url.startsWith('http')) {
+                    fullUrl = url;
+                  } else {
+                    final path = url.startsWith('/') ? url : '/$url';
+                    fullUrl = '${ApiConstants.imageBaseUrl}$path';
+                  }
+                }
+
+                return Stack(
+                  children: [
+                    Container(
+                      width: 120.w,
+                      margin: EdgeInsets.only(right: 8.w),
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(8.r),
+                        border: Border.all(
+                          color: Colors.grey.shade300,
+                          width: 1,
+                        ),
+                      ),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(8.r),
+                        child: isLocal
+                            ? Image.file(
+                                selectedFiles[index],
+                                fit: BoxFit.cover,
+                                width: double.infinity,
+                                height: double.infinity,
+                              )
+                            : (fullUrl != null && _isImageFile(fullUrl)
+                                ? Image.network(
+                                    fullUrl,
+                                    fit: BoxFit.cover,
+                                    width: double.infinity,
+                                    height: double.infinity,
+                                    headers: _authToken != null
+                                        ? {'Authorization': 'Bearer $_authToken'}
+                                        : null,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return Center(
+                                          child: Icon(Icons.error_outline,
+                                              color: Colors.grey));
+                                    },
+                                    loadingBuilder: (context, child, loadingProgress) {
+                                      if (loadingProgress == null) return child;
+                                      return Center(
+                                          child: CircularProgressIndicator(
+                                              color: primeryColor));
+                                    },
+                                  )
+                                : Center(
+                                    child: Icon(Icons.insert_drive_file_rounded,
+                                        color: Colors.red.shade400, size: 30.sp),
+                                  )),
+                      ),
+                    ),
+                    Positioned(
+                      top: 4,
+                      right: 10,
+                      child: GestureDetector(
+                        onTap: () {
+                          if (isLocal) {
+                            onRemoveLocal(index);
+                          } else {
+                            onRemoveRemote(index - selectedFiles.length);
+                          }
+                        },
+                        child: Container(
+                          padding: EdgeInsets.all(2.r),
+                          decoration: BoxDecoration(
+                            color: Colors.red.shade400,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.close,
+                              color: Colors.white, size: 14.sp),
+                        ),
+                      ),
+                    ),
+                  ],
+                );
+              },
+            ),
+          )
+        else
+          _buildImageUpload(
+            onTap: onAdd,
+          ),
+      ],
     );
   }
 }

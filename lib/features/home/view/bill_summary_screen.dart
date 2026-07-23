@@ -1312,7 +1312,8 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
 
                   // 4. Navigate away after dialog is closed
                   final wasEditing = controller.editingBillId != null;
-                  controller.reset(); // Clear all billing data
+                  controller.resetForNewBill(); // Clear billing data only (keep report filters)
+                  controller.fetchBills(); // Refresh report list with existing filters
                   botNav.updateFormView(FormView.selection);
                   nav.pop();
                   // If we came from Edit Draft, there's an extra BillingScreen on the stack

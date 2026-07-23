@@ -59,7 +59,7 @@ class LandController with ChangeNotifier {
     required String area,
     String? landOwnerName,
     String? relationType,
-    required File landImage,
+    required List<File> landImages,
   }) async {
     _setLoading(true);
     try {
@@ -81,21 +81,20 @@ class LandController with ChangeNotifier {
         fields['relationType'] = relationType;
       }
 
-      final extension = p.extension(landImage.path).toLowerCase();
-      String mimeType = (extension == '.png') ? 'image/png' : 'image/jpeg';
-
       final List<http.MultipartFile> files = [];
-      if (await landImage.exists()) {
-        files.add(await http.MultipartFile.fromPath(
-          'land',
-          landImage.path,
-          contentType: MediaType.parse(mimeType),
-        ));
-      } else {
-        debugPrint('Land image file not found at: ${landImage.path}');
+      for (final img in landImages) {
+        final extension = p.extension(img.path).toLowerCase();
+        String mimeType = (extension == '.png') ? 'image/png' : 'image/jpeg';
+        if (await img.exists()) {
+          files.add(await http.MultipartFile.fromPath(
+            'land',
+            img.path,
+            contentType: MediaType.parse(mimeType),
+          ));
+        }
       }
 
-      debugPrint('Uploading land to: $url');
+      debugPrint('Uploading land to: $url (${files.length} files)');
       final response = await _apiService.multipartRequest(
         url,
         fields: fields,

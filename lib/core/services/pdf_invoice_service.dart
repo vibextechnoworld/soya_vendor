@@ -420,7 +420,7 @@ class PdfInvoiceService {
           pw.SizedBox(height: 12),
           _a4InlineField(ttf, ttfBold, 'Central Sr. No.', data.grnNo,
               labelWidth: 108),
-          _a4InlineField(ttf, ttfBold, 'Purchase Point Sr. No.', data.kpNo,
+          _a4InlineField(ttf, ttfBold, 'Purchase Point Sr. No.', data.vendorBillSeq,
               labelWidth: 108),
           _a4InlineField(ttf, ttfBold, 'Commodity', _commodity,
               labelWidth: 108),
@@ -581,17 +581,19 @@ class PdfInvoiceService {
             child: pw.Column(
               children: [
                 _a4InlineField(
-                    ttf, ttfBold, 'Purchase Point Sr. No.', data.kpNo,
+                    ttf, ttfBold, 'Purchase Point Sr. No.', data.vendorBillSeq,
                     labelWidth: 120),
                 _a4InlineField(ttf, ttfBold, 'Date', data.date,
                     labelWidth: 120),
                 _a4InlineField(ttf, ttfBold, 'Total Bags', data.totalBags,
                     labelWidth: 120),
-                _a4InlineField(
-                    ttf, ttfBold, 'Kaltani Bags (50 Kg)', data.kaltaniBags,
-                    labelWidth: 120),
-                _a4InlineField(ttf, ttfBold, 'PP Bags (150 Gms)', data.ppBags,
-                    labelWidth: 120),
+                if (data.kaltaniBags != '0')
+                  _a4InlineField(
+                      ttf, ttfBold, 'Kaltani Bags', data.kaltaniBags,
+                      labelWidth: 120),
+                if (data.ppBags != '0')
+                  _a4InlineField(ttf, ttfBold, 'PP Bags', data.ppBags,
+                      labelWidth: 120),
               ],
             ),
           ),
@@ -1104,8 +1106,10 @@ class PdfInvoiceService {
                 _a4ReturnField(ttf, ttfBold, 'KP No.', data.kpNo),
                 _a4ReturnField(ttf, ttfBold, 'Date', data.date),
                 _a4ReturnField(ttf, ttfBold, 'Total Bags', data.totalBags),
-                _a4ReturnField(ttf, ttfBold, 'Kaltani Bags', data.kaltaniBags),
-                _a4ReturnField(ttf, ttfBold, "PP Bag's", data.ppBags),
+                if (data.kaltaniBags != '0')
+                  _a4ReturnField(ttf, ttfBold, 'Kaltani Bags', data.kaltaniBags),
+                if (data.ppBags != '0')
+                  _a4ReturnField(ttf, ttfBold, "PP Bag's", data.ppBags),
               ],
             ),
           ),
@@ -1488,8 +1492,10 @@ class PdfInvoiceService {
           _thermalRow(ttf, ttfBold, 'KP No', data.kpNo),
           _thermalRow(ttf, ttfBold, 'Date', data.date),
           _thermalRow(ttf, ttfBold, 'Total Bags', data.totalBags),
-          _thermalRow(ttf, ttfBold, 'Kaltani Bags', data.kaltaniBags),
-          _thermalRow(ttf, ttfBold, 'PP Bags', data.ppBags),
+          if (data.kaltaniBags != '0')
+            _thermalRow(ttf, ttfBold, 'Kaltani Bags', data.kaltaniBags),
+          if (data.ppBags != '0')
+            _thermalRow(ttf, ttfBold, 'PP Bags', data.ppBags),
         ],
       ),
     );
@@ -1638,11 +1644,12 @@ class _BillPrintData {
   final String accountNo;
   final String ifsc;
   final String vendorNo;
+  final String vendorBillSeq;
   final String totalBags;
   final String ppBags;
   final String kaltaniBags;
   final List<List<String>> bagRows;
-  final List<List<String>> thermalBagRows;
+  final List<List<String>> thermalBagRows; 
   final List<List<String>> returnBagRows;
   final List<List<String>> qualityRows;
   final List<List<String>> thermalQualityRows;
@@ -1678,6 +1685,7 @@ class _BillPrintData {
     required this.accountNo,
     required this.ifsc,
     required this.vendorNo,
+    required this.vendorBillSeq,
     required this.totalBags,
     required this.ppBags,
     required this.kaltaniBags,
@@ -1775,6 +1783,7 @@ class _BillPrintData {
       accountNo: _clean(bank?.accountNo),
       ifsc: _clean(bank?.ifsc),
       vendorNo: _short(bill.vendorId),
+      vendorBillSeq: _clean(bill.vendorBillSeq?.toString()),
       totalBags: '$totalBags',
       ppBags: '${ppBags < 0 ? 0 : ppBags}',
       kaltaniBags: '$kaltaniBags',
@@ -1807,7 +1816,7 @@ class _BillPrintData {
         '${bill.bagCount ?? 0}'
       ]);
     } else {
-      rows.add(['PP Bag (150 Gms)', '$totalBags']);
+      rows.add(['PP Bag', '$totalBags']);
     }
    
     return rows;

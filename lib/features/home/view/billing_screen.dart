@@ -793,7 +793,7 @@ class _BillingScreenState extends State<BillingScreen> {
                                         child: DropdownButton<String>(
                                           value: controller.vehicleType,
                                           isExpanded: true,
-                                          items: ["Truck", "Tractor", "Other"]
+                                          items: ["Truck", "Tractor", "Pickup", "Tempo", "Bullock Cart", "Other"]
                                               .map((type) => DropdownMenuItem(
                                                     value: type,
                                                     child: Text(type,
