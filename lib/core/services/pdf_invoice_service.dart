@@ -1,6 +1,9 @@
 import 'dart:io';
 import 'dart:convert';
+import 'dart:ui' as ui;
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:intl/intl.dart';
 import 'package:path_provider/path_provider.dart';
@@ -46,6 +49,37 @@ class PdfInvoiceService {
     return null;
   }
 
+  static Future<Uint8List> _renderTextToImage(
+    String text, {
+    double fontSize = 7.7,
+    double maxWidth = 520,
+  }) async {
+    final recorder = ui.PictureRecorder();
+    final canvas = Canvas(recorder);
+    final textPainter = TextPainter(
+      text: TextSpan(
+        text: text,
+        style: TextStyle(
+          fontSize: fontSize * 3,
+          color: Colors.black,
+          fontFamily: 'Mukta',
+          fontWeight: FontWeight.w700,
+        ),
+      ),
+      textDirection: ui.TextDirection.ltr,
+    );
+    textPainter.layout(maxWidth: maxWidth * 3);
+    final size = textPainter.size;
+    canvas.drawColor(Colors.white, BlendMode.src);
+    textPainter.paint(canvas, Offset.zero);
+    final picture = recorder.endRecording();
+    final image =
+        await picture.toImage(size.width.toInt(), size.height.toInt());
+    final byteData =
+        await image.toByteData(format: ui.ImageByteFormat.png);
+    return byteData!.buffer.asUint8List();
+  }
+
   static Future<Uint8List> generateInvoice(
     BillModel bill, {
     BillPrintFormat format = BillPrintFormat.a4,
@@ -89,6 +123,12 @@ class PdfInvoiceService {
         vendorLocation: vLocation,
         standardRate: stdRate);
     final disclaimerText = customDisclaimer ?? await _fetchDisclaimer();
+
+    final String declText = (disclaimerText != null &&
+            disclaimerText.trim().isNotEmpty)
+        ? 'I, ${data.farmerName}, ${disclaimerText.trim()}'
+        : 'I, ${data.farmerName}, confirm that the supplied crop belongs to me and the payment details mentioned above are accepted by me.';
+    final declImage = await _renderTextToImage(declText);
 
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
@@ -140,7 +180,7 @@ class PdfInvoiceService {
                     ttf,
                     ttfBold,
                     data,
-                    customDisclaimer: disclaimerText,
+                    declImage: declImage,
                   ),
                   pw.SizedBox(height: 2),
                   _a4CutLine(ttf),
@@ -187,6 +227,12 @@ class PdfInvoiceService {
         vendorLocation: vLocation,
         standardRate: stdRate);
     final disclaimerText = customDisclaimer ?? await _fetchDisclaimer();
+    final String thermalDeclText = (disclaimerText != null &&
+            disclaimerText.trim().isNotEmpty)
+        ? 'I, ${data.farmerName}, ${disclaimerText.trim()}'
+        : 'I confirm that the supplied crop belongs to me and payment details mentioned above are accepted by me.';
+    final thermalDeclImage = await _renderTextToImage(thermalDeclText,
+        fontSize: 6, maxWidth: 170);
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
     );
@@ -252,13 +298,7 @@ class PdfInvoiceService {
                     boldValue: true, labelWidth: 82),
                 _thermalLine(),
                 _thermalCenter(ttfBold, 'DECLARATION'),
-                pw.Text(
-                  (disclaimerText != null && disclaimerText.trim().isNotEmpty)
-                      ? 'I, ${data.farmerName}, ${disclaimerText.trim()}'
-                      : 'I confirm that the supplied crop belongs to me and payment details mentioned above are accepted by me.',
-                  textAlign: pw.TextAlign.left,
-                  style: pw.TextStyle(font: ttfBold, fontSize: 6),
-                ),
+                pw.Image(pw.MemoryImage(thermalDeclImage)),
                 pw.SizedBox(height: 10),
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
@@ -420,7 +460,7 @@ class PdfInvoiceService {
           pw.SizedBox(height: 12),
           _a4InlineField(ttf, ttfBold, 'Central Sr. No.', data.grnNo,
               labelWidth: 108),
-          _a4InlineField(ttf, ttfBold, 'Purchase Point Sr. No.', data.vendorBillSeq,
+          _a4InlineField(ttf, ttfBold, 'Purchase Point Sr. No.', 'TBSPL-KP-${data.vendorBillSeq}',
               labelWidth: 108),
           _a4InlineField(ttf, ttfBold, 'Commodity', _commodity,
               labelWidth: 108),
@@ -581,7 +621,7 @@ class PdfInvoiceService {
             child: pw.Column(
               children: [
                 _a4InlineField(
-                    ttf, ttfBold, 'Purchase Point Sr. No.', data.vendorBillSeq,
+                    ttf, ttfBold, 'Purchase Point Sr. No.', 'TBSPL-KP-${data.vendorBillSeq}',
                     labelWidth: 120),
                 _a4InlineField(ttf, ttfBold, 'Date', data.date,
                     labelWidth: 120),
@@ -1152,12 +1192,7 @@ class PdfInvoiceService {
 
   static pw.Widget _declarationSection(
       pw.Font ttf, pw.Font ttfBold, _BillPrintData data,
-      {String? customDisclaimer}) {
-    final String declarationText = (customDisclaimer != null &&
-            customDisclaimer.trim().isNotEmpty)
-        ? 'I, ${data.farmerName}, ${customDisclaimer.trim()}'
-        : 'I, ${data.farmerName}, confirm that the supplied crop belongs to me and the payment details mentioned above are accepted by me.';
-
+      {required Uint8List declImage}) {
     return pw.Padding(
       padding: const pw.EdgeInsets.fromLTRB(6, 0, 6, 0),
       child: pw.Column(
@@ -1169,10 +1204,7 @@ class PdfInvoiceService {
             style: pw.TextStyle(font: ttfBold, fontSize: 9.8),
           ),
           pw.SizedBox(height: 3),
-          pw.Text(
-            declarationText,
-            style: pw.TextStyle(font: ttfBold, fontSize: 7.7),
-          ),
+          pw.Image(pw.MemoryImage(declImage)),
           pw.SizedBox(height: 4),
           pw.Text(
             'Amount received in words: Rs. ${_numberToWords(data.payableRounded)} ONLY',
