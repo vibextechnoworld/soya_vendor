@@ -489,6 +489,12 @@ class PdfInvoiceService {
           _a4AmountRow(
               ttf, ttfBold, 'Final Purchase Rate', 'Rs. ${data.rate} / Qtl'),
           _a4Dash(),
+          if (data.advanceAmount.isNotEmpty)
+            ...[
+              _a4AmountRow(
+                  ttf, ttfBold, 'Advance Deduction', '- Rs. ${data.advanceAmount}'),
+              _a4Dash(),
+            ],
           _a4AmountRow(
               ttf, ttfBold, 'PAYABLE AMOUNT', 'Rs. ${data.payableAmount}',
               bold: true, fontSize: 9.3),
@@ -1327,6 +1333,10 @@ class PdfInvoiceService {
               labelWidth: 62),
           _thermalRow(ttf, ttfBold, 'Purchase Rate', 'Rs ${data.rate} / Qtl',
               labelWidth: 62),
+          if (data.advanceAmount.isNotEmpty)
+            _thermalRow(ttf, ttfBold, 'Advance Deduction',
+                '- Rs ${data.advanceAmount}',
+                labelWidth: 62),
           pw.SizedBox(height: 3),
           _thermalRow(ttf, ttfBold, 'AMOUNT', 'Rs ${data.payableAmount}',
               boldValue: true, labelWidth: 62, fontSize: 7.8),
@@ -1671,6 +1681,7 @@ class _BillPrintData {
   final String vendorMobile;
   final String deductionTotal;
   final String deductionTotalValue;
+  final String advanceAmount;
   final String bankName;
   final String holderName;
   final String accountNo;
@@ -1712,6 +1723,7 @@ class _BillPrintData {
     required this.vendorMobile,
     required this.deductionTotal,
     required this.deductionTotalValue,
+    required this.advanceAmount,
     required this.bankName,
     required this.holderName,
     required this.accountNo,
@@ -1785,7 +1797,7 @@ class _BillPrintData {
     final ppBags = totalBags - kaltaniBags;
 
     return _BillPrintData(
-      rate: _fmt(finalRate),
+      rate: '${finalRate.round()}',
       farmerId: _short(farmer?.id ?? bill.farmerId),
       farmerName: _clean(farmer?.name),
       aadhaar: _clean(farmer?.aadhaarNo),
@@ -1803,13 +1815,14 @@ class _BillPrintData {
       grossKg: _fmtPrecise(grossQtl),
       bagDeductionKg: _fmtPrecise(bagDeductionQtl),
       netKg: _fmtPrecise(netQtl),
-      actualRate: _fmt(actualRateVal),
+      actualRate: '${actualRateVal.round()}',
       payableAmount: '${payable.round()}',
       payableRounded: payable.round(),
       vendorName: vendorName ?? _clean(farmer?.vendorName),
       vendorMobile: vendorMobile ?? '',
       deductionTotal: _money(deductionTotal),
       deductionTotalValue: _fmtPrecise(deductionTotalValue),
+      advanceAmount: advance > 0 ? '${advance.round()}' : '',
       bankName: _clean(bank?.bankName),
       holderName: _clean(bank?.holderName ?? farmer?.name),
       accountNo: _clean(bank?.accountNo),

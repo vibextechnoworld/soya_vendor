@@ -938,19 +938,19 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
           ),
           _buildInfoRow(
             "Actual Rate:",
-            "${actualRate.toStringAsFixed(2)} ₹/QTL",
+            "₹ ${actualRate.round()} /QTL",
           ),
-          _buildInfoRow("Total Payable:", "₹ ${netPayable.toStringAsFixed(2)}"),
+          _buildInfoRow("Total Payable:", "₹ ${netPayable.round()}"),
           if (advance > 0.01)
             _buildInfoRow(
               "Advance Amount:",
-              "₹ ${advance.toStringAsFixed(2)}",
+              "₹ ${advance.round()}",
               textColor: redColor,
             ),
           if (settled > 0.01)
             _buildInfoRow(
               "Settled Amount:",
-              "₹ ${settled.toStringAsFixed(2)}",
+              "₹ ${settled.round()}",
               textColor: primeryColor,
             ),
           _buildInfoRow(
