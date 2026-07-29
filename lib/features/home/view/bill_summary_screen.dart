@@ -33,7 +33,7 @@ class BillSummaryScreen extends StatefulWidget {
 }
 
 class _BillSummaryScreenState extends State<BillSummaryScreen> {
-  static const MethodChannel platform = MethodChannel('com.soya_app/share');
+  static const MethodChannel platform = MethodChannel('com.dashon.tbspl/share');
   @override
   void initState() {
     super.initState();
@@ -2783,7 +2783,7 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                             ),
                             SizedBox(height: 8.h),
                             DropdownButtonFormField<String>(
-                              initialValue: selectedReason,
+                              value: selectedReason,
                               decoration: InputDecoration(
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 12.w,

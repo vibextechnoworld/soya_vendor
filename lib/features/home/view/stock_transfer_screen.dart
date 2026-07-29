@@ -1110,7 +1110,7 @@ class _StockTransferScreenState extends State<StockTransferScreen>
                       style: TextStyle(
                           fontWeight: FontWeight.w600, fontSize: 13.sp)),
                   Switch(
-                    activeThumbColor: primeryColor,
+                    activeTrackColor: primeryColor,
                     value: _isThappiWise,
                     onChanged: (val) {
                       setState(() {

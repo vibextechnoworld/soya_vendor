@@ -1007,7 +1007,7 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
                             ),
                             SizedBox(height: 8.h),
                             DropdownButtonFormField<String>(
-                              initialValue: selectedReason,
+                              value: selectedReason,
                               decoration: InputDecoration(
                                 contentPadding: EdgeInsets.symmetric(
                                   horizontal: 12.w,

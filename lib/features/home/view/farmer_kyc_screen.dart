@@ -1785,41 +1785,53 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             Center(
               child: Stack(
                 children: [
-                  Container(
-                    width: 100.r,
-                    height: 100.r,
-                    decoration: BoxDecoration(
-                      color: Colors.grey.shade200,
-                      shape: BoxShape.circle,
-                      border: Border.all(color: primeryColor, width: 2),
-                      image: _profileImage != null
-                          ? DecorationImage(
-                              image: FileImage(_profileImage!),
-                              fit: BoxFit.cover,
+                  GestureDetector(
+                    onTap: (_profileImage != null || (_profileImageUrl != null && _profileImageUrl!.isNotEmpty))
+                        ? () => _showFullImage(
+                              localFile: _profileImage,
+                              networkUrl: _profileImageUrl != null && _profileImageUrl!.isNotEmpty
+                                  ? (_profileImageUrl!.startsWith('http')
+                                      ? _profileImageUrl!
+                                      : '${ApiConstants.imageBaseUrl}${_profileImageUrl!.startsWith('/') ? '' : '/'}$_profileImageUrl')
+                                  : null,
                             )
-                          : (_profileImageUrl != null &&
-                                  _profileImageUrl!.isNotEmpty
-                              ? DecorationImage(
-                                  image: NetworkImage(
-                                    _profileImageUrl!.startsWith('http')
-                                        ? _profileImageUrl!
-                                        : '${ApiConstants.imageBaseUrl}${_profileImageUrl!.startsWith('/') ? '' : '/'}$_profileImageUrl',
-                                    headers: _authToken != null
-                                        ? {
-                                            'Authorization':
-                                                'Bearer $_authToken'
-                                          }
-                                        : null,
-                                  ),
-                                  fit: BoxFit.cover,
-                                )
-                              : null),
-                    ),
-                    child: (_profileImage == null &&
-                            (_profileImageUrl == null ||
-                                _profileImageUrl!.isEmpty))
-                        ? Icon(Icons.person, size: 50.r, color: Colors.grey)
                         : null,
+                    child: Container(
+                      width: 100.r,
+                      height: 100.r,
+                      decoration: BoxDecoration(
+                        color: Colors.grey.shade200,
+                        shape: BoxShape.circle,
+                        border: Border.all(color: primeryColor, width: 2),
+                        image: _profileImage != null
+                            ? DecorationImage(
+                                image: FileImage(_profileImage!),
+                                fit: BoxFit.cover,
+                              )
+                            : (_profileImageUrl != null &&
+                                    _profileImageUrl!.isNotEmpty
+                                ? DecorationImage(
+                                    image: NetworkImage(
+                                      _profileImageUrl!.startsWith('http')
+                                          ? _profileImageUrl!
+                                          : '${ApiConstants.imageBaseUrl}${_profileImageUrl!.startsWith('/') ? '' : '/'}$_profileImageUrl',
+                                      headers: _authToken != null
+                                          ? {
+                                              'Authorization':
+                                                  'Bearer $_authToken'
+                                            }
+                                          : null,
+                                    ),
+                                    fit: BoxFit.cover,
+                                  )
+                                : null),
+                      ),
+                      child: (_profileImage == null &&
+                              (_profileImageUrl == null ||
+                                  _profileImageUrl!.isEmpty))
+                          ? Icon(Icons.person, size: 50.r, color: Colors.grey)
+                          : null,
+                    ),
                   ),
                   Positioned(
                     bottom: 0,
@@ -3181,6 +3193,71 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     );
   }
 
+  void _showFullImage({File? localFile, String? networkUrl}) {
+    if (localFile == null && networkUrl == null) return;
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Stack(
+            children: [
+              Center(
+                child: localFile != null
+                    ? Image.file(
+                        localFile,
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        height: double.infinity,
+                      )
+                    : Image.network(
+                        networkUrl!,
+                        fit: BoxFit.contain,
+                        width: double.infinity,
+                        height: double.infinity,
+                        headers: _authToken != null
+                            ? {'Authorization': 'Bearer $_authToken'}
+                            : null,
+                        errorBuilder: (context, error, stackTrace) {
+                          return const Center(
+                            child: Icon(Icons.error_outline,
+                                color: Colors.white, size: 40),
+                          );
+                        },
+                        loadingBuilder: (context, child, loadingProgress) {
+                          if (loadingProgress == null) return child;
+                          return const Center(
+                            child: CircularProgressIndicator(
+                                color: Colors.white),
+                          );
+                        },
+                      ),
+              ),
+              Positioned(
+                top: 16,
+                right: 16,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: EdgeInsets.all(6.r),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.close,
+                        color: Colors.white, size: 24.sp),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   bool _isImageFile(String path) {
     final extension =
         path.contains('.') ? path.split('.').last.toLowerCase() : '';
@@ -3207,81 +3284,35 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     final bool isSelectedFileImage =
         selectedFile != null && _isImageFile(selectedFile.path);
     final bool isRemoteUrlImage = fullUrl != null && _isImageFile(fullUrl);
+    final bool hasImage = isSelectedFileImage || isRemoteUrlImage;
 
     return GestureDetector(
-      onTap: onTap,
+      onTap: hasImage ? () => _showFullImage(
+        localFile: selectedFile,
+        networkUrl: fullUrl,
+      ) : onTap,
       child: DottedBorder(
         color: Colors.grey.withOpacity(0.4),
         strokeWidth: 2,
         dashPattern: const [6, 3],
         borderType: BorderType.RRect,
         radius: Radius.circular(8.r),
-        child: Container(
-          width: double.infinity,
-          height: 150.h,
-          decoration: BoxDecoration(
-            color: whiteColor,
-            borderRadius: BorderRadius.circular(8.r),
-          ),
-          child: selectedFile != null
-              ? (isSelectedFileImage
-                  ? ClipRRect(
-                      borderRadius: BorderRadius.circular(8.r),
-                      child: Image.file(
-                        selectedFile,
-                        fit: BoxFit.cover,
-                      ),
-                    )
-                  : Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            selectedFile.path.split('.').last.toLowerCase() ==
-                                    'pdf'
-                                ? Icons.picture_as_pdf_rounded
-                                : Icons.insert_drive_file_rounded,
-                            color: Colors.red.shade400,
-                            size: 40.sp,
-                          ),
-                          SizedBox(height: 4.h),
-                          Text(
-                            selectedFile.path.split('/').last.split('\\').last,
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 10.sp,
-                              fontFamily: FontFamily.jost,
-                              color: greyColor,
-                            ),
-                          ),
-                        ],
-                      ),
-                    ))
-              : (fullUrl != null
-                  ? (isRemoteUrlImage
+        child: Stack(
+          children: [
+            Container(
+              width: double.infinity,
+              height: 150.h,
+              decoration: BoxDecoration(
+                color: whiteColor,
+                borderRadius: BorderRadius.circular(8.r),
+              ),
+              child: selectedFile != null
+                  ? (isSelectedFileImage
                       ? ClipRRect(
                           borderRadius: BorderRadius.circular(8.r),
-                          child: Image.network(
-                            fullUrl,
+                          child: Image.file(
+                            selectedFile,
                             fit: BoxFit.cover,
-                            headers: _authToken != null
-                                ? {'Authorization': 'Bearer $_authToken'}
-                                : null,
-                            errorBuilder: (context, error, stackTrace) {
-                              debugPrint(
-                                  'Image load error for $fullUrl: $error');
-                              return const Center(
-                                  child: Icon(Icons.error_outline));
-                            },
-                            loadingBuilder: (context, child, loadingProgress) {
-                              if (loadingProgress == null) return child;
-                              return Center(
-                                child: CircularProgressIndicator(
-                                  color: primeryColor,
-                                ),
-                              );
-                            },
                           ),
                         )
                       : Center(
@@ -3289,7 +3320,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
                               Icon(
-                                fullUrl.toLowerCase().endsWith('.pdf')
+                                selectedFile.path.split('.').last.toLowerCase() ==
+                                        'pdf'
                                     ? Icons.picture_as_pdf_rounded
                                     : Icons.insert_drive_file_rounded,
                                 color: Colors.red.shade400,
@@ -3297,7 +3329,9 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                               ),
                               SizedBox(height: 4.h),
                               Text(
-                                'Document Attached',
+                                selectedFile.path.split('/').last.split('\\').last,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
                                   fontSize: 10.sp,
                                   fontFamily: FontFamily.jost,
@@ -3307,24 +3341,112 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                             ],
                           ),
                         ))
-                  : Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(Icons.upload_outlined,
-                              color: Colors.grey.shade400, size: 28.sp),
-                          SizedBox(height: 8.h),
-                          Text(
-                            'Tap to select image or document',
-                            style: TextStyle(
-                              fontSize: 12.sp,
-                              color: Colors.grey.shade400,
-                              fontFamily: FontFamily.jost,
-                            ),
+                  : (fullUrl != null
+                      ? (isRemoteUrlImage
+                          ? ClipRRect(
+                              borderRadius: BorderRadius.circular(8.r),
+                              child: Image.network(
+                                fullUrl,
+                                fit: BoxFit.cover,
+                                headers: _authToken != null
+                                    ? {'Authorization': 'Bearer $_authToken'}
+                                    : null,
+                                errorBuilder: (context, error, stackTrace) {
+                                  debugPrint(
+                                      'Image load error for $fullUrl: $error');
+                                  return const Center(
+                                      child: Icon(Icons.error_outline));
+                                },
+                                loadingBuilder: (context, child, loadingProgress) {
+                                  if (loadingProgress == null) return child;
+                                  return Center(
+                                    child: CircularProgressIndicator(
+                                      color: primeryColor,
+                                    ),
+                                  );
+                                },
+                              ),
+                            )
+                          : Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Icon(
+                                    fullUrl.toLowerCase().endsWith('.pdf')
+                                        ? Icons.picture_as_pdf_rounded
+                                        : Icons.insert_drive_file_rounded,
+                                    color: Colors.red.shade400,
+                                    size: 40.sp,
+                                  ),
+                                  SizedBox(height: 4.h),
+                                  Text(
+                                    'Document Attached',
+                                    style: TextStyle(
+                                      fontSize: 10.sp,
+                                      fontFamily: FontFamily.jost,
+                                      color: greyColor,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ))
+                      : Center(
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Icon(Icons.upload_outlined,
+                                  color: Colors.grey.shade400, size: 28.sp),
+                              SizedBox(height: 8.h),
+                              Text(
+                                'Tap to select image or document',
+                                style: TextStyle(
+                                  fontSize: 12.sp,
+                                  color: Colors.grey.shade400,
+                                  fontFamily: FontFamily.jost,
+                                ),
+                              ),
+                            ],
                           ),
-                        ],
-                      ),
-                    )),
+                        )),
+            ),
+            if (hasImage)
+              Positioned(
+                top: 6,
+                left: 6,
+                child: GestureDetector(
+                  onTap: () => _showFullImage(
+                    localFile: selectedFile,
+                    networkUrl: fullUrl,
+                  ),
+                  child: Container(
+                    padding: EdgeInsets.all(4.r),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      borderRadius: BorderRadius.circular(4.r),
+                    ),
+                    child: Icon(Icons.visibility,
+                        color: Colors.white, size: 16.sp),
+                  ),
+                ),
+              ),
+            if (hasImage)
+              Positioned(
+                top: 6,
+                right: 6,
+                child: GestureDetector(
+                  onTap: onTap,
+                  child: Container(
+                    padding: EdgeInsets.all(4.r),
+                    decoration: BoxDecoration(
+                      color: primeryColor,
+                      borderRadius: BorderRadius.circular(4.r),
+                    ),
+                    child: Icon(Icons.edit,
+                        color: Colors.white, size: 16.sp),
+                  ),
+                ),
+              ),
+          ],
         ),
       ),
     );
@@ -3401,50 +3523,79 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
 
                 return Stack(
                   children: [
-                    Container(
-                      width: 120.w,
-                      margin: EdgeInsets.only(right: 8.w),
-                      decoration: BoxDecoration(
-                        borderRadius: BorderRadius.circular(8.r),
-                        border: Border.all(
-                          color: Colors.grey.shade300,
-                          width: 1,
+                    GestureDetector(
+                      onTap: () {
+                        _showFullImage(
+                          localFile: isLocal ? selectedFiles[index] : null,
+                          networkUrl: !isLocal ? fullUrl : null,
+                        );
+                      },
+                      child: Container(
+                        width: 120.w,
+                        margin: EdgeInsets.only(right: 8.w),
+                        decoration: BoxDecoration(
+                          borderRadius: BorderRadius.circular(8.r),
+                          border: Border.all(
+                            color: Colors.grey.shade300,
+                            width: 1,
+                          ),
+                        ),
+                        child: ClipRRect(
+                          borderRadius: BorderRadius.circular(8.r),
+                          child: isLocal
+                              ? Image.file(
+                                  selectedFiles[index],
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: double.infinity,
+                                )
+                              : (fullUrl != null && _isImageFile(fullUrl)
+                                  ? Image.network(
+                                      fullUrl,
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                      headers: _authToken != null
+                                          ? {'Authorization': 'Bearer $_authToken'}
+                                          : null,
+                                      errorBuilder: (context, error, stackTrace) {
+                                        return Center(
+                                            child: Icon(Icons.error_outline,
+                                                color: Colors.grey));
+                                      },
+                                      loadingBuilder: (context, child, loadingProgress) {
+                                        if (loadingProgress == null) return child;
+                                        return Center(
+                                            child: CircularProgressIndicator(
+                                                color: primeryColor));
+                                      },
+                                    )
+                                  : Center(
+                                      child: Icon(Icons.insert_drive_file_rounded,
+                                          color: Colors.red.shade400, size: 30.sp),
+                                    )),
                         ),
                       ),
-                      child: ClipRRect(
-                        borderRadius: BorderRadius.circular(8.r),
-                        child: isLocal
-                            ? Image.file(
-                                selectedFiles[index],
-                                fit: BoxFit.cover,
-                                width: double.infinity,
-                                height: double.infinity,
-                              )
-                            : (fullUrl != null && _isImageFile(fullUrl)
-                                ? Image.network(
-                                    fullUrl,
-                                    fit: BoxFit.cover,
-                                    width: double.infinity,
-                                    height: double.infinity,
-                                    headers: _authToken != null
-                                        ? {'Authorization': 'Bearer $_authToken'}
-                                        : null,
-                                    errorBuilder: (context, error, stackTrace) {
-                                      return Center(
-                                          child: Icon(Icons.error_outline,
-                                              color: Colors.grey));
-                                    },
-                                    loadingBuilder: (context, child, loadingProgress) {
-                                      if (loadingProgress == null) return child;
-                                      return Center(
-                                          child: CircularProgressIndicator(
-                                              color: primeryColor));
-                                    },
-                                  )
-                                : Center(
-                                    child: Icon(Icons.insert_drive_file_rounded,
-                                        color: Colors.red.shade400, size: 30.sp),
-                                  )),
+                    ),
+                    Positioned(
+                      top: 4,
+                      left: 4,
+                      child: GestureDetector(
+                        onTap: () {
+                          _showFullImage(
+                            localFile: isLocal ? selectedFiles[index] : null,
+                            networkUrl: !isLocal ? fullUrl : null,
+                          );
+                        },
+                        child: Container(
+                          padding: EdgeInsets.all(2.r),
+                          decoration: BoxDecoration(
+                            color: Colors.black54,
+                            shape: BoxShape.circle,
+                          ),
+                          child: Icon(Icons.visibility,
+                              color: Colors.white, size: 12.sp),
+                        ),
                       ),
                     ),
                     Positioned(

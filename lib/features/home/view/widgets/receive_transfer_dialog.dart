@@ -215,7 +215,7 @@ class _ReceiveTransferDialogState extends State<ReceiveTransferDialog> {
                         child: _buildDialogField(
                           'Unit',
                           child: DropdownButtonFormField<String>(
-                            initialValue: _selectedUnit,
+                            value: _selectedUnit,
                             style: TextStyle(
                                 color: blackColor,
                                 fontWeight: FontWeight.bold,

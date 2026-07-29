@@ -453,7 +453,7 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                   "Bill_${bill.billNo ?? bill.id}_${printFormat == BillPrintFormat.thermal58 ? '58mm' : 'A4'}");
           break;
         case 'whatsapp':
-          const platform = MethodChannel('com.soya_app.share/whatsapp');
+          const platform = MethodChannel('com.dashon.tbspl/share');
           final fileName =
               "Bill_${bill.billNo?.replaceAll('/', '_') ?? bill.id}.pdf";
           final file = await PdfInvoiceService.savePdfFile(fileName, pdfBytes);
