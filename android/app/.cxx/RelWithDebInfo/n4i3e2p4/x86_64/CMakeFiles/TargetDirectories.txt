@@ -1,0 +1,2 @@
+C:/Users/admin/Downloads/soya_app/android/app/.cxx/RelWithDebInfo/n4i3e2p4/x86_64/CMakeFiles/edit_cache.dir
+C:/Users/admin/Downloads/soya_app/android/app/.cxx/RelWithDebInfo/n4i3e2p4/x86_64/CMakeFiles/rebuild_cache.dir

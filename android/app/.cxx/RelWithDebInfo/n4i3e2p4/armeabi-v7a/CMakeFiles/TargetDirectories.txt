@@ -1,0 +1,2 @@
+C:/Users/admin/Downloads/soya_app/android/app/.cxx/RelWithDebInfo/n4i3e2p4/armeabi-v7a/CMakeFiles/edit_cache.dir
+C:/Users/admin/Downloads/soya_app/android/app/.cxx/RelWithDebInfo/n4i3e2p4/armeabi-v7a/CMakeFiles/rebuild_cache.dir
