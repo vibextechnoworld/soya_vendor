@@ -68,6 +68,11 @@ class BankData {
   });
 
   factory BankData.fromJson(Map<String, dynamic> json) {
+    final List<String>? images = (json['passbookImages'] as List?)
+        ?.whereType<String>()
+        .where((u) => u.isNotEmpty)
+        .toList();
+    final String? single = json['passbookImage'] as String?;
     return BankData(
       id: json['id'] as String?,
       farmerId: json['farmerId'] as String?,
@@ -77,7 +82,9 @@ class BankData {
       branchName: json['branchName'] as String?,
       holderName: json['holderName'] as String?,
       isPrimary: json['isPrimary'] as bool?,
-      passbookImage: json['passbookImage'] as String?,
+      passbookImage: (images != null && images.isNotEmpty)
+          ? images.first
+          : single,
     );
   }
 

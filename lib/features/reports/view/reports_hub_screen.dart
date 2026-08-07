@@ -7,6 +7,7 @@ import 'package:soya_app/util/font_family.dart';
 import 'package:soya_app/routes/app_routes.dart';
 import 'package:fl_chart/fl_chart.dart';
 import 'package:soya_app/features/home/controller/billing_controller.dart';
+import 'package:soya_app/features/reports/view/widgets/report_generation_date.dart';
 
 class ReportsHubScreen extends StatefulWidget {
   const ReportsHubScreen({super.key});
@@ -44,8 +45,8 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
             const HeaderWidget(),
             Padding(
               padding: EdgeInsets.symmetric(horizontal: 20.w, vertical: 20.h),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
                     "Analytics",
@@ -56,6 +57,7 @@ class _ReportsHubScreenState extends State<ReportsHubScreen>
                       color: blackColor,
                     ),
                   ),
+                  const ReportGenerationDate(),
                 ],
               ),
             ),

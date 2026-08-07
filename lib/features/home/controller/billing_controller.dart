@@ -289,6 +289,27 @@ class BillingController extends ChangeNotifier {
   num _totalAmount = 0;
   num get totalAmount => _totalAmount;
 
+  num _totalBags = 0;
+  num get totalBags => _totalBags;
+
+  num _totalGrossWeight = 0;
+  num get totalGrossWeight => _totalGrossWeight;
+
+  num _totalBagWeight = 0;
+  num get totalBagWeight => _totalBagWeight;
+
+  num _totalNetWeight = 0;
+  num get totalNetWeight => _totalNetWeight;
+
+  num _avgFm = 0;
+  num get avgFm => _avgFm;
+
+  num _avgDamage = 0;
+  num get avgDamage => _avgDamage;
+
+  num _avgMoisture = 0;
+  num get avgMoisture => _avgMoisture;
+
   BillModel? _selectedBillDetails;
   BillModel? get selectedBillDetails => _selectedBillDetails;
 
@@ -1279,6 +1300,13 @@ class BillingController extends ChangeNotifier {
     _billSearchQuery = search;
     _averageRate = 0; // Reset average rate when fetching new data
     _totalAmount = 0; // Reset total amount when fetching new data
+    _totalBags = 0;
+    _totalGrossWeight = 0;
+    _totalBagWeight = 0;
+    _totalNetWeight = 0;
+    _avgFm = 0;
+    _avgDamage = 0;
+    _avgMoisture = 0;
     try {
       final prefs = await SharedPreferences.getInstance();
       final vendorId = _ignoreVendorId ? "" : (prefs.getString('userId') ?? "");
@@ -1312,6 +1340,13 @@ class BillingController extends ChangeNotifier {
             (_totalItems > 0 ? (_totalItems / limit).ceil() : 1);
         _averageRate = billListModel.averageRate ?? 0;
         _totalAmount = billListModel.totalAmount ?? 0;
+        _totalBags = billListModel.totalBags ?? 0;
+        _totalGrossWeight = billListModel.totalGrossWeight ?? 0;
+        _totalBagWeight = billListModel.totalBagWeight ?? 0;
+        _totalNetWeight = billListModel.totalNetWeight ?? 0;
+        _avgFm = billListModel.avgFm ?? 0;
+        _avgDamage = billListModel.avgDamage ?? 0;
+        _avgMoisture = billListModel.avgMoisture ?? 0;
 
         // Fallback: If averageRate is 0 but bills are available, calculate locally from the results
         if (_averageRate == 0 && _bills.isNotEmpty) {
@@ -1338,6 +1373,40 @@ class BillingController extends ChangeNotifier {
           }
           _totalAmount = totalSum;
         }
+
+        // Fallbacks for report totals (only cover the current page when the
+        // backend does not provide the summary keys yet).
+        if (_totalBags == 0 && _bills.isNotEmpty) {
+          for (var bill in _bills) {
+            _totalBags += (bill.bagCount ?? 0);
+          }
+        }
+        if (_totalGrossWeight == 0 && _bills.isNotEmpty) {
+          for (var bill in _bills) {
+            _totalGrossWeight += (bill.primaryQuantity ?? 0);
+          }
+        }
+        if (_totalBagWeight == 0 && _bills.isNotEmpty) {
+          for (var bill in _bills) {
+            _totalBagWeight += (bill.goniWeight ?? 0);
+          }
+        }
+        if (_totalNetWeight == 0 && _bills.isNotEmpty) {
+          for (var bill in _bills) {
+            final gross = bill.primaryQuantity?.toDouble() ?? 0;
+            final bag = bill.goniWeight?.toDouble() ?? 0;
+            _totalNetWeight += (gross - bag).clamp(0, gross);
+          }
+        }
+        if (_avgFm == 0 && _bills.isNotEmpty) {
+          _avgFm = _avgDeduction('FM');
+        }
+        if (_avgDamage == 0 && _bills.isNotEmpty) {
+          _avgDamage = _avgDeduction('Damage');
+        }
+        if (_avgMoisture == 0 && _bills.isNotEmpty) {
+          _avgMoisture = _avgDeduction('Moisture');
+        }
         notifyListeners();
       }
     } catch (e) {
@@ -1345,6 +1414,38 @@ class BillingController extends ChangeNotifier {
     } finally {
       _setLoading(false);
     }
+  }
+
+  num _avgDeduction(String key) {
+    num total = 0;
+    int count = 0;
+    for (final bill in _bills) {
+      final val = _deductionNum(bill, key);
+      if (val != null) {
+        total += val;
+        count++;
+      }
+    }
+    return count > 0 ? total / count : 0;
+  }
+
+  num? _deductionNum(BillModel bill, String key) {
+    final deductions = bill.deductions;
+    if (deductions == null || deductions.isEmpty) return null;
+    for (final d in deductions) {
+      if (d.customInputs != null && d.customInputs!.containsKey(key)) {
+        final v = d.customInputs![key];
+        if (v != null) return num.tryParse('$v');
+      }
+      if (d.payload != null) {
+        final ci = d.payload!['customInputs'];
+        if (ci is Map && ci.containsKey(key)) {
+          final v = ci[key];
+          if (v != null) return num.tryParse('$v');
+        }
+      }
+    }
+    return null;
   }
 
   /// Debounced search for bill reports

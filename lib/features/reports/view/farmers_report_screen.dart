@@ -14,6 +14,7 @@ import 'package:soya_app/core/widgets/empty_state_widget.dart';
 import 'package:soya_app/routes/app_routes.dart';
 import 'package:soya_app/features/home/controller/billing_controller.dart';
 import 'package:soya_app/features/bottom_navigation_bar/controller/bottom_navbar_controller.dart';
+import 'package:soya_app/features/reports/view/widgets/report_generation_date.dart';
 
 class FarmersReportScreen extends StatefulWidget {
   const FarmersReportScreen({super.key});
@@ -112,14 +113,20 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
             icon: Icon(Icons.arrow_back_ios, size: 20.sp, color: blackColor),
             onPressed: () => Navigator.pop(context),
           ),
-          Text(
-            "Farmers Report",
-            style: TextStyle(
-              fontSize: 24.sp,
-              fontWeight: FontWeight.bold,
-              fontFamily: FontFamily.georgia,
-              color: blackColor,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Farmers Report",
+                style: TextStyle(
+                  fontSize: 24.sp,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: FontFamily.georgia,
+                  color: blackColor,
+                ),
+              ),
+              const ReportGenerationDate(),
+            ],
           ),
         ],
       ),

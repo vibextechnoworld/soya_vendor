@@ -57,6 +57,7 @@ class LandController with ChangeNotifier {
     required String district,
     required String landType,
     required String area,
+    String? gutNumber,
     String? landOwnerName,
     String? relationType,
     required List<File> landImages,
@@ -79,6 +80,9 @@ class LandController with ChangeNotifier {
       }
       if (relationType != null && relationType.isNotEmpty) {
         fields['relationType'] = relationType;
+      }
+      if (gutNumber != null && gutNumber.isNotEmpty) {
+        fields['gutNumber'] = gutNumber;
       }
 
       final List<http.MultipartFile> files = [];

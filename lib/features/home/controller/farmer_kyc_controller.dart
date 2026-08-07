@@ -434,9 +434,19 @@ class FarmerKycController with ChangeNotifier {
     _isIdSubmitted = false;
     _isLandSubmitted = false;
     _isBankSubmitted = false;
-    _fetchedDocuments = null;
-    _fetchedLands = null;
-    _fetchedBank = null;
+    // Seed from the passed farmer if it already embeds details, so the form
+    // (including uploaded images) renders immediately. The async fetch below
+    // refreshes/overrides these with full server data.
+    _fetchedDocuments =
+        (farmer.documents != null && farmer.documents!.isNotEmpty)
+            ? farmer.documents
+            : null;
+    _fetchedLands = (farmer.lands != null && farmer.lands!.isNotEmpty)
+        ? farmer.lands
+        : null;
+    _fetchedBank = (farmer.banks != null && farmer.banks!.isNotEmpty)
+        ? farmer.banks
+        : null;
     _createdFarmerId = farmer.id;
     _fetchedFarmerDetail = farmer;
     _searchResults = []; // Clear suggestions
@@ -1075,8 +1085,10 @@ class FarmerKycController with ChangeNotifier {
     String? taluka,
     String? district,
     String? area,
+    String? gutNumber,
     String? landOwnerName,
     String? relationType,
+    List<String>? landDocumentUrls,
   }) async {
     _setLoading(true);
     _errorMessage = null;
@@ -1085,15 +1097,19 @@ class FarmerKycController with ChangeNotifier {
       final url = ApiConstants.updateFarmerLandById
           .replaceAll('{{farmerId}}', farmerId);
       
-      final Map<String, String> body = {
+      final Map<String, dynamic> body = {
         'landType': landType,
       };
       if (villageAdd != null) body['villageAdd'] = villageAdd;
       if (taluka != null) body['taluka'] = taluka;
       if (district != null) body['district'] = district;
       if (area != null) body['area'] = area;
+      if (gutNumber != null && gutNumber.isNotEmpty) body['gutNumber'] = gutNumber;
       if (landOwnerName != null) body['landOwnerName'] = landOwnerName;
       if (relationType != null) body['relationType'] = relationType;
+      if (landDocumentUrls != null && landDocumentUrls.isNotEmpty) {
+        body['documentUrls'] = landDocumentUrls;
+      }
 
       final response = await _apiService.put(url, body: body);
 

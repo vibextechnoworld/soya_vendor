@@ -129,6 +129,10 @@ class PdfInvoiceService {
         ? 'I, ${data.farmerName}, ${disclaimerText.trim()}'
         : 'I, ${data.farmerName}, confirm that the supplied crop belongs to me and the payment details mentioned above are accepted by me.';
     final declImage = await _renderTextToImage(declText);
+    final sloganImage =
+        await _renderTextToImage('समृद्ध शेतकरी चळवळ', fontSize: 9);
+    final logoImage =
+        (await rootBundle.load('assets/playstore_icon.png')).buffer.asUint8List();
 
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
@@ -149,7 +153,8 @@ class PdfInvoiceService {
               child: pw.Column(
                 crossAxisAlignment: pw.CrossAxisAlignment.stretch,
                 children: [
-                  _a4ReceiptHeader(ttf, ttfBold, data),
+                  _a4ReceiptHeader(ttf, ttfBold, data,
+                      logoImage: logoImage),
                   _a4Rule(),
                   pw.Row(
                     crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -187,6 +192,8 @@ class PdfInvoiceService {
                   _a4TearOffSlip(ttf, ttfBold, data),
                   _a4Rule(),
                   _a4ReceiptFooter(ttf, ttfBold),
+                  pw.SizedBox(height: 8),
+                  pw.Center(child: pw.Image(pw.MemoryImage(sloganImage))),
                 ],
               ),
             ),
@@ -233,6 +240,10 @@ class PdfInvoiceService {
         : 'I confirm that the supplied crop belongs to me and payment details mentioned above are accepted by me.';
     final thermalDeclImage = await _renderTextToImage(thermalDeclText,
         fontSize: 6, maxWidth: 170);
+    final thermalSloganImage = await _renderTextToImage(
+        'समृद्ध शेतकरी चळवळ',
+        fontSize: 6.2,
+        maxWidth: 170);
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
     );
@@ -261,7 +272,9 @@ class PdfInvoiceService {
                 _thermalRow(ttf, ttfBold, 'Invoice No', data.kpNo),
                 _thermalRow(ttf, ttfBold, 'Date', data.date),
                 _thermalRow(ttf, ttfBold, 'Purchase by', ''),
-                _thermalRow(ttf, ttfBold, 'Farmer Name', data.farmerName),
+                _thermalRow(ttf, ttfBold, 'Farmer Name',  data.farmerName == null || data.farmerName!.isEmpty
+      ? ''
+      : _titleCase(data.farmerName),),
                 _thermalRow(ttf, ttfBold, 'Mobile No', data.mobile),
                 _thermalRow(ttf, ttfBold, 'Village', data.village),
                 _thermalLine(),
@@ -271,7 +284,7 @@ class PdfInvoiceService {
                 _thermalRow(ttf, ttfBold, 'Gross Weight', '${data.grossKg} QTL',
                     labelWidth: 75),
                 _thermalRow(
-                    ttf, ttfBold, 'Bag Deduction', '${data.bagDeductionKg} QTL',
+                    ttf, ttfBold, 'Bag Deduction', '${(data.bagDeductionKg.isNotEmpty ? (double.tryParse(data.bagDeductionKg) ?? 0) * 100 : 0).toStringAsFixed(2)} KG',
                     labelWidth: 75),
                 _thermalLine(),
                 _thermalRow(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL',
@@ -312,9 +325,8 @@ class PdfInvoiceService {
                 _thermalCenter(ttf, data.printedOn, size: 6),
                 _thermalCenter(ttfBold, 'KISAN HELPLINE : $_helpline',
                     size: 6.3),
-                _thermalLine(),
-                _thermalCenter(ttfBold, 'SAMRUDDHA SHETKARI CHALWAL',
-                    size: 7.2),
+                pw.SizedBox(height: 3),
+                pw.Center(child: pw.Image(pw.MemoryImage(thermalSloganImage))),
               ],
             ),
           );
@@ -326,7 +338,8 @@ class PdfInvoiceService {
   }
 
   static pw.Widget _a4ReceiptHeader(
-      pw.Font ttf, pw.Font ttfBold, _BillPrintData data) {
+      pw.Font ttf, pw.Font ttfBold, _BillPrintData data,
+      {Uint8List? logoImage}) {
     return pw.Column(
       children: [
         pw.Row(
@@ -343,10 +356,15 @@ class PdfInvoiceService {
                     decoration: pw.BoxDecoration(
                       border: pw.Border.all(color: PdfColors.black, width: .8),
                     ),
-                    child: pw.Text(
-                      _companyShortName,
-                      style: pw.TextStyle(font: ttfBold, fontSize: 18),
-                    ),
+                    child: logoImage != null
+                        ? pw.Image(
+                            pw.MemoryImage(logoImage),
+                            fit: pw.BoxFit.contain,
+                          )
+                        : pw.Text(
+                            _companyShortName,
+                            style: pw.TextStyle(font: ttfBold, fontSize: 18),
+                          ),
                   ),
                   pw.SizedBox(height: 2),
                   pw.Text(
@@ -421,7 +439,9 @@ class PdfInvoiceService {
           _a4SectionTitle(ttfBold, 'FARMER INFORMATION'),
           pw.SizedBox(height: 8),
           _a4InlineField(ttf, ttfBold, 'Aadhaar No.', data.aadhaar),
-          _a4InlineField(ttf, ttfBold, 'Farmer Name', data.farmerName),
+          _a4InlineField(ttf, ttfBold, 'Farmer Name',  data.farmerName == null || data.farmerName!.isEmpty
+      ? ''
+      : _titleCase(data.farmerName),),
           _a4InlineField(ttf, ttfBold, 'Farmer ID', data.farmerId),
           _a4InlineField(ttf, ttfBold, 'Mobile No.', data.mobile),
           _a4InlineField(ttf, ttfBold, 'Village', data.village),
@@ -481,19 +501,19 @@ class PdfInvoiceService {
           pw.SizedBox(height: 8),
           _a4AmountRow(ttf, ttfBold, 'Gross Weight', '${data.grossKg} QTL'),
           _a4AmountRow(ttf, ttfBold, 'Bag Weight (Deduction)',
-              '${data.bagDeductionKg} QTL'),
-          _a4Dash(),
+              '${(data.bagDeductionKg.isNotEmpty ? (double.tryParse(data.bagDeductionKg) ?? 0) * 100 : 0).toStringAsFixed(2)} KG'),
+          // _a4Dash(),
           _a4AmountRow(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL',
               bold: true),
-          _a4Dash(),
+          // _a4Dash(),
           _a4AmountRow(
               ttf, ttfBold, 'Final Purchase Rate', 'Rs. ${data.rate} / Qtl'),
-          _a4Dash(),
+          // _a4Dash(),
           if (data.advanceAmount.isNotEmpty)
             ...[
               _a4AmountRow(
                   ttf, ttfBold, 'Advance Deduction', '- Rs. ${data.advanceAmount}'),
-              _a4Dash(),
+              // _a4Dash(),
             ],
           _a4AmountRow(
               ttf, ttfBold, 'PAYABLE AMOUNT', 'Rs. ${data.payableAmount}',
@@ -512,7 +532,7 @@ class PdfInvoiceService {
           _a4SectionTitle(ttfBold, 'BAG DETAILS'),
           pw.SizedBox(height: 7),
           _a4TwoColumnHeader(ttfBold, 'Particulars', 'Quantity (Bags)'),
-          _a4Dash(),
+          // _a4Dash(),
           ...data.bagRows.map(
             (row) => _a4AmountRow(
               ttf,
@@ -538,9 +558,9 @@ class PdfInvoiceService {
           _a4QualityRow(
               ttfBold, ['Parameter', 'Allowed', 'Actual', 'Deduction'],
               isHeader: true),
-          _a4Dash(),
+          // _a4Dash(),
           ...data.qualityRows.map((row) => _a4QualityRow(ttf, row)),
-          _a4Dash(),
+          // _a4Dash(),
           _a4AmountRow(
               ttf, ttfBold, 'Total Deduction', data.deductionTotalValue,
               bold: true),
@@ -602,14 +622,16 @@ class PdfInvoiceService {
           pw.Expanded(
             child: pw.Column(
               children: [
-                _a4InlineField(ttf, ttfBold, 'Farmer Name', data.farmerName,
+                _a4InlineField(ttf, ttfBold, 'Farmer Name',  data.farmerName == null || data.farmerName!.isEmpty
+      ? ''
+      : _titleCase(data.farmerName),
                     labelWidth: 96),
                 _a4InlineField(ttf, ttfBold, 'Vehicle No.', data.vehicleNo,
                     labelWidth: 96),
                 _a4InlineField(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL',
                     labelWidth: 96),
                 _a4InlineField(
-                    ttf, ttfBold, 'Purchase Rate', 'Rs. ${data.rate} / Qtl',
+                    ttf, ttfBold, 'Purchase Rate', 'Rs. ${data.rate}',
                     labelWidth: 96),
                 _a4InlineField(
                     ttf, ttfBold, 'Total Amount', 'Rs. ${data.payableAmount}',
@@ -633,13 +655,15 @@ class PdfInvoiceService {
                     labelWidth: 120),
                 _a4InlineField(ttf, ttfBold, 'Total Bags', data.totalBags,
                     labelWidth: 120),
-                if (data.kaltaniBags != '0')
-                  _a4InlineField(
-                      ttf, ttfBold, 'Kaltani Bags', data.kaltaniBags,
-                      labelWidth: 120),
-                if (data.ppBags != '0')
-                  _a4InlineField(ttf, ttfBold, 'PP Bags', data.ppBags,
-                      labelWidth: 120),
+                ...data.bagTypeCounts.map(
+                  (row) => _a4InlineField(
+                    ttf,
+                    ttfBold,
+                    row.first,
+                    row.length > 1 ? row[1] : '',
+                    labelWidth: 120,
+                  ),
+                ),
               ],
             ),
           ),
@@ -672,7 +696,7 @@ class PdfInvoiceService {
                 pw.Text('REGISTERED ADDRESS',
                     style: pw.TextStyle(font: ttfBold, fontSize: 8)),
                 pw.Text(
-                  'At Post - Bhandi Bk.\nTaluka - Murud,\nDist. - Latur,\nMaharashtra - 413512',
+                  'Head Office, Latur - Barshi Road, Near Palsap Pati, Gat No. 259/260,\nWathwada Dharashiv (Osmanabad),\nMaharashtra',
                   style: pw.TextStyle(font: ttfBold, fontSize: 6.6),
                 ),
               ],
@@ -1130,11 +1154,13 @@ class PdfInvoiceService {
           pw.Expanded(
             child: pw.Column(
               children: [
-                _a4ReturnField(ttf, ttfBold, 'Farmer Name', data.farmerName),
+                _a4ReturnField(ttf, ttfBold, 'Farmer Name', data.farmerName == null || data.farmerName!.isEmpty
+      ? ''
+      : _titleCase(data.farmerName),),
                 _a4ReturnField(ttf, ttfBold, 'Vehicle Number', data.vehicleNo),
                 _a4ReturnField(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL'),
                 _a4ReturnField(
-                    ttf, ttfBold, 'Purchase Rate', 'Rs. ${data.rate} / Qtl'),
+                    ttf, ttfBold, 'Purchase Rate', 'Rs. ${data.rate}'),
                 _a4ReturnField(
                     ttf, ttfBold, 'Total Amount', 'Rs. ${data.payableAmount}'),
               ],
@@ -1152,10 +1178,14 @@ class PdfInvoiceService {
                 _a4ReturnField(ttf, ttfBold, 'KP No.', data.kpNo),
                 _a4ReturnField(ttf, ttfBold, 'Date', data.date),
                 _a4ReturnField(ttf, ttfBold, 'Total Bags', data.totalBags),
-                if (data.kaltaniBags != '0')
-                  _a4ReturnField(ttf, ttfBold, 'Kaltani Bags', data.kaltaniBags),
-                if (data.ppBags != '0')
-                  _a4ReturnField(ttf, ttfBold, "PP Bag's", data.ppBags),
+                ...data.bagTypeCounts.map(
+                  (row) => _a4ReturnField(
+                    ttf,
+                    ttfBold,
+                    row.first,
+                    row.length > 1 ? row[1] : '',
+                  ),
+                ),
               ],
             ),
           ),
@@ -1525,19 +1555,25 @@ class PdfInvoiceService {
       child: pw.Column(
         crossAxisAlignment: pw.CrossAxisAlignment.stretch,
         children: [
-          _thermalRow(ttf, ttfBold, 'Farmer Name', data.farmerName),
+          _thermalRow(ttf, ttfBold, 'Farmer Name',  data.farmerName == null || data.farmerName!.isEmpty
+      ? ''
+      : _titleCase(data.farmerName),),
           _thermalRow(ttf, ttfBold, 'Vehicle No', data.vehicleNo),
           _thermalRow(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL'),
-          _thermalRow(ttf, ttfBold, 'Rate', 'Rs ${data.rate} / Qtl'),
+          _thermalRow(ttf, ttfBold, 'Rate', 'Rs ${data.rate}'),
           _thermalRow(ttf, ttfBold, 'Total Amount', 'Rs ${data.payableAmount}'),
           _thermalLine(),
           _thermalRow(ttf, ttfBold, 'KP No', data.kpNo),
           _thermalRow(ttf, ttfBold, 'Date', data.date),
           _thermalRow(ttf, ttfBold, 'Total Bags', data.totalBags),
-          if (data.kaltaniBags != '0')
-            _thermalRow(ttf, ttfBold, 'Kaltani Bags', data.kaltaniBags),
-          if (data.ppBags != '0')
-            _thermalRow(ttf, ttfBold, 'PP Bags', data.ppBags),
+          ...data.bagTypeCounts.map(
+            (row) => _thermalRow(
+              ttf,
+              ttfBold,
+              row.first,
+              row.length > 1 ? row[1] : '',
+            ),
+          ),
         ],
       ),
     );
@@ -1689,8 +1725,7 @@ class _BillPrintData {
   final String vendorNo;
   final String vendorBillSeq;
   final String totalBags;
-  final String ppBags;
-  final String kaltaniBags;
+  final List<List<String>> bagTypeCounts;
   final List<List<String>> bagRows;
   final List<List<String>> thermalBagRows; 
   final List<List<String>> returnBagRows;
@@ -1731,8 +1766,7 @@ class _BillPrintData {
     required this.vendorNo,
     required this.vendorBillSeq,
     required this.totalBags,
-    required this.ppBags,
-    required this.kaltaniBags,
+    required this.bagTypeCounts,
     required this.bagRows,
     required this.thermalBagRows,
     required this.returnBagRows,
@@ -1793,8 +1827,6 @@ class _BillPrintData {
       (sum, row) => sum + (num.tryParse(row.length > 3 ? row[3] : '0') ?? 0),
     );
     final totalBags = _totalBags(bill);
-    final kaltaniBags = _typedBagCount(bill, 'kaltani');
-    final ppBags = totalBags - kaltaniBags;
 
     return _BillPrintData(
       rate: '${finalRate.round()}',
@@ -1830,8 +1862,7 @@ class _BillPrintData {
       vendorNo: _short(bill.vendorId),
       vendorBillSeq: _clean(bill.vendorBillSeq?.toString()),
       totalBags: '$totalBags',
-      ppBags: '${ppBags < 0 ? 0 : ppBags}',
-      kaltaniBags: '$kaltaniBags',
+      bagTypeCounts: _bagTypeCounts(bill),
       bagRows: bagRows,
       thermalBagRows: bagRows
           .map((row) => [row.first, row.length > 1 ? row[1] : '0'])
@@ -1842,6 +1873,26 @@ class _BillPrintData {
           .map((row) => [row.first, row.length > 2 ? row[2] : '0'])
           .toList(),
     );
+  }
+
+  static List<List<String>> _bagTypeCounts(BillModel bill) {
+    final rows = <List<String>>[];
+    if (bill.gonis?.isNotEmpty == true) {
+      for (final goni in bill.gonis!) {
+        rows.add([
+          _clean(goni.goniType?.name ?? 'PP Bag'),
+          '${goni.bagCount ?? 0}'
+        ]);
+      }
+    } else if (bill.goniType != null) {
+      rows.add([
+        _clean(bill.goniType?.name ?? 'PP Bag'),
+        '${bill.bagCount ?? 0}'
+      ]);
+    } else {
+      rows.add(['PP Bag', '${_totalBags(bill)}']);
+    }
+    return rows;
   }
 
   static List<List<String>> _bagRows(BillModel bill) {
@@ -1894,19 +1945,6 @@ class _BillPrintData {
         bill.gonis?.fold<int>(0, (sum, g) => sum + (g.bagCount ?? 0)) ??
         bill.items?.fold<int>(0, (sum, i) => sum + (i.bagCount ?? 0)) ??
         0;
-  }
-
-  static int _typedBagCount(BillModel bill, String typeText) {
-    final needle = typeText.toLowerCase();
-    if (bill.gonis?.isNotEmpty == true) {
-      return bill.gonis!.fold<int>(0, (sum, goni) {
-        final name = (goni.goniType?.name ?? '').toLowerCase();
-        return name.contains(needle) ? sum + (goni.bagCount ?? 0) : sum;
-      });
-    }
-
-    final name = (bill.goniType?.name ?? '').toLowerCase();
-    return name.contains(needle) ? bill.bagCount ?? 0 : 0;
   }
 
   static List<List<String>> _qualityRows(List<BillDeduction> deductions) {
@@ -2063,4 +2101,14 @@ class _BillPrintData {
     final formatter = NumberFormat('#,##,##0.00', 'en_IN');
     return formatter.format(value);
   }
+}
+
+String _titleCase(String? value) {
+  if (value == null || value.trim().isEmpty) return '';
+  return value
+      .trim()
+      .split(' ')
+      .where((part) => part.isNotEmpty)
+      .map((part) => '${part[0].toUpperCase()}${part.substring(1).toLowerCase()}')
+      .join(' ');
 }

@@ -10,6 +10,7 @@ import 'package:soya_app/features/home/controller/stock_controller.dart';
 import 'package:soya_app/features/home/model/vendor_stock_summary_model.dart';
 import 'package:soya_app/features/reports/view/widgets/pagination_widget.dart';
 import 'package:soya_app/core/widgets/empty_state_widget.dart';
+import 'package:soya_app/features/reports/view/widgets/report_generation_date.dart';
 
 class StockReportScreen extends StatefulWidget {
   const StockReportScreen({super.key});
@@ -423,14 +424,20 @@ class _StockReportScreenState extends State<StockReportScreen>
             icon: Icon(Icons.arrow_back_ios, size: 20.sp, color: blackColor),
             onPressed: () => Navigator.pop(context),
           ),
-          Text(
-            "Stock Report",
-            style: TextStyle(
-              fontSize: 24.sp,
-              fontWeight: FontWeight.bold,
-              fontFamily: FontFamily.georgia,
-              color: blackColor,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Stock Report",
+                style: TextStyle(
+                  fontSize: 24.sp,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: FontFamily.georgia,
+                  color: blackColor,
+                ),
+              ),
+              const ReportGenerationDate(),
+            ],
           ),
         ],
       ),

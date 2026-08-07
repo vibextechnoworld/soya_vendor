@@ -4,6 +4,7 @@ import 'package:dotted_border/dotted_border.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
 import 'package:path_provider/path_provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -24,6 +25,30 @@ import 'package:soya_app/features/location/controller/location_provider.dart';
 import 'package:soya_app/features/location/model/location_model.dart';
 import 'package:dropdown_search/dropdown_search.dart';
 import 'package:soya_app/features/home/view/farmer_kyc_list_screen.dart';
+
+class _AdditionalLandEntry {
+  final landTypeController = TextEditingController(text: 'OWN');
+  final gutNumberController = TextEditingController();
+  final areaController = TextEditingController();
+  final ownerNameController = TextEditingController();
+  final relationTypeController = TextEditingController();
+  List<File> documents = [];
+  List<String> documentUrls = [];
+
+  bool get hasData =>
+      areaController.text.trim().isNotEmpty ||
+      documents.isNotEmpty ||
+      documentUrls.isNotEmpty ||
+      gutNumberController.text.trim().isNotEmpty;
+
+  void dispose() {
+    landTypeController.dispose();
+    gutNumberController.dispose();
+    areaController.dispose();
+    ownerNameController.dispose();
+    relationTypeController.dispose();
+  }
+}
 
 class FarmerKYCScreen extends StatefulWidget {
   const FarmerKYCScreen({super.key});
@@ -61,10 +86,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   final _landOwnerNameController = TextEditingController();
   final _landRelationTypeController = TextEditingController();
   List<File> _landDocuments = [];
-  final _bloodRelationAreaController = TextEditingController();
-  final _bloodRelationOwnerNameController = TextEditingController();
-  final _bloodRelationRelationTypeController = TextEditingController();
-  List<File> _bloodRelationLandDocuments = [];
+  final List<_AdditionalLandEntry> _additionalLands = [];
 
   // Land Address Controllers (New)
   final _landVillageController = TextEditingController();
@@ -94,10 +116,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   String? _panImageUrl;
   String? _licenseImageUrl;
   List<String> _landDocumentUrls = [];
-  List<String> _bloodRelationLandDocumentUrls = [];
   String? _passbookImageUrl;
-
-  bool _showBloodRelationLand = false;
 
   String? _authToken;
   String? _lastFarmerId;
@@ -116,7 +135,6 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     _setupControllerListener();
     _setupExistingCheckListeners();
     _areaController.addListener(_onAreaChanged);
-    _bloodRelationAreaController.addListener(_onAreaChanged);
     _landLocationProvider.loadData();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       Provider.of<LocationProvider>(context, listen: false).loadData();
@@ -296,41 +314,36 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
           if (_areaController.text.isEmpty) {
             _fillLandData(controller.fetchedLands!.first);
           }
-          // Collect all land document URLs from fetched lands
-          for (final land in controller.fetchedLands!) {
-            if (land.documentUrl != null && land.documentUrl!.isNotEmpty) {
-              _landDocumentUrls.add(land.documentUrl!);
+          // Collect document URLs for primary land
+          if (_landDocumentUrls.isEmpty) {
+            for (final land in controller.fetchedLands!) {
+              if (land.documentUrl != null && land.documentUrl!.isNotEmpty) {
+                _landDocumentUrls.add(land.documentUrl!);
+                break;
+              }
             }
           }
 
-          // Check for Blood Relation land in searched lands
-          final bloodLand = controller.fetchedLands!
-              .where((l) => l.landType == 'BLOOD_RELATION')
-              .firstOrNull;
-          if (bloodLand != null) {
-            if (_bloodRelationAreaController.text.isEmpty) {
-              if (bloodLand.area != null) {
-                final bloodHectareVal = _acreToHectare(bloodLand.area!);
-                _bloodRelationAreaController.text = bloodHectareVal > 0
-                    ? bloodHectareVal.toStringAsFixed(2)
+          // Populate additional land entries (skip the first/primary land)
+          if (_additionalLands.isEmpty) {
+            for (final land in controller.fetchedLands!.skip(1)) {
+              final entry = _AdditionalLandEntry();
+              entry.landTypeController.text = land.landType ?? 'OWN';
+              if (land.area != null) {
+                final hectareVal = _acreToHectare(land.area!);
+                entry.areaController.text = hectareVal > 0
+                    ? hectareVal.toStringAsFixed(2)
                     : '';
-              } else {
-                _bloodRelationAreaController.text = '';
               }
+              entry.ownerNameController.text = land.landOwnerName ?? '';
+              entry.relationTypeController.text = land.relationType ?? '';
+              entry.gutNumberController.text = land.gutNumber ?? '';
+              if (land.documentUrl != null && land.documentUrl!.isNotEmpty) {
+                entry.documentUrls = [land.documentUrl!];
+              }
+              entry.areaController.addListener(_onAreaChanged);
+              _additionalLands.add(entry);
             }
-            if (_bloodRelationOwnerNameController.text.isEmpty) {
-              _bloodRelationOwnerNameController.text =
-                  bloodLand.landOwnerName ?? '';
-            }
-            if (_bloodRelationRelationTypeController.text.isEmpty) {
-              _bloodRelationRelationTypeController.text =
-                  bloodLand.relationType ?? '';
-            }
-            if (bloodLand.documentUrl != null &&
-                bloodLand.documentUrl!.isNotEmpty) {
-              _bloodRelationLandDocumentUrls = [bloodLand.documentUrl!];
-            }
-            _showBloodRelationLand = true;
           }
         }
 
@@ -350,6 +363,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
           _profileImageUrl = controller.fetchedFarmerDetail!.profileUrl;
         }
       });
+      debugPrint(
+          '🔍 Resolve fill -> step=${controller.currentStep} '
+          'aadhaarUrls=$_aadhaarImageUrls panUrl=$_panImageUrl '
+          'licenseUrl=$_licenseImageUrl landUrls=$_landDocumentUrls '
+          'passbookUrl=$_passbookImageUrl profileUrl=$_profileImageUrl');
     }
   }
 
@@ -383,6 +401,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   void _fillLandData(LandData land) {
     setState(() {
       _landTypeController.text = land.landType ?? 'OWN';
+      _gutNumberController.text = land.gutNumber ?? '';
       if (land.area != null) {
         final hectareVal = _acreToHectare(land.area!);
         _areaController.text =
@@ -449,7 +468,6 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   void dispose() {
     _controller.removeListener(_onControllerUpdate);
     _areaController.removeListener(_onAreaChanged);
-    _bloodRelationAreaController.removeListener(_onAreaChanged);
     _firstNameController.dispose();
     _middleNameController.dispose();
     _lastNameController.dispose();
@@ -462,9 +480,10 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     _areaController.dispose();
     _landOwnerNameController.dispose();
     _landRelationTypeController.dispose();
-    _bloodRelationAreaController.dispose();
-    _bloodRelationOwnerNameController.dispose();
-    _bloodRelationRelationTypeController.dispose();
+    for (final entry in _additionalLands) {
+      entry.areaController.removeListener(_onAreaChanged);
+      entry.dispose();
+    }
     _landVillageController.dispose();
     _landTalukaController.dispose();
     _landDistrictController.dispose();
@@ -487,7 +506,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     super.dispose();
   }
 
-  Future<void> _pickImage(String type) async {
+  Future<void> _pickImage(String type, {int? index}) async {
     try {
       final pickedFile = await ImagePickerService.pickFile(context);
       if (pickedFile != null) {
@@ -508,10 +527,10 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             _landDocuments.add(persistentFile);
           } else if (type == 'PASSBOOK') {
             _passbookImage = persistentFile;
-          } else if (type == 'BLOOD_RELATION' ||
-              type == 'BLOOD_RELATION_LAND' ||
-              type == 'BLOOD_RELATION_712') {
-            _bloodRelationLandDocuments.add(persistentFile);
+          } else if (type == 'ADDITIONAL_LAND') {
+            if (index != null && index < _additionalLands.length) {
+              _additionalLands[index].documents.add(persistentFile);
+            }
           }
         });
       }
@@ -709,15 +728,26 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             isUpdate: controller.isLandSubmitted,
           );
         } else {
-          // No new document selected, but we have text edits, so update text fields
-          primarySuccess = await controller.updateFarmerLand(
+          // No new document selected: download the existing remote image and
+          // re-upload it through the same upload path used when a new image is
+          // selected (the backend has no dedicated land-update route).
+          final existing =
+              await _downloadImageToFile(_landDocumentUrls.first);
+          if (existing == null) {
+            if (mounted) {
+              ToastMessage.show(context,
+                  message: 'Could not load existing land document. Please upload it again.',
+                  isError: true);
+            }
+            return;
+          }
+          primarySuccess = await controller.uploaddocuments(
             context: context,
             farmerId: farmerId,
-            landType: landType,
-            villageAdd: _landVillageController.text.trim(),
-            taluka: _landTalukaController.text.trim(),
-            district: _landDistrictController.text.trim(),
+            type: 'LAND_712',
+            documents: [existing],
             area: _convertInputHectareToAcreStr(_areaController.text),
+            isUpdate: controller.isLandSubmitted,
           );
         }
       } else {
@@ -742,6 +772,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             district: _landDistrictController.text.trim(),
             landType: landType,
             area: _convertInputHectareToAcreStr(_areaController.text),
+            gutNumber: _gutNumberController.text.trim(),
             landOwnerName: landType == 'BLOOD_RELATION'
                 ? _landOwnerNameController.text.trim()
                 : null,
@@ -751,60 +782,85 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             landImages: _landDocuments,
           );
         } else {
-          // No new image selected, but we have text edits, so update text fields
-          primarySuccess = await controller.updateFarmerLand(
+          // No new image selected: download the existing remote image and
+          // re-upload it through the same multipart path used when a new image
+          // is selected (the backend has no dedicated land-update route).
+          final downloaded = <File>[];
+          for (final url in _landDocumentUrls) {
+            final file = await _downloadImageToFile(url);
+            if (file != null) downloaded.add(file);
+          }
+          if (downloaded.isEmpty) {
+            if (mounted) {
+              ToastMessage.show(context,
+                  message: 'Could not load existing land document. Please upload it again.',
+                  isError: true);
+            }
+            return;
+          }
+          primarySuccess = await landController.addFarmerLands(
             context: context,
             farmerId: farmerId,
-            landType: landType,
             villageAdd: _landVillageController.text.trim(),
             taluka: _landTalukaController.text.trim(),
             district: _landDistrictController.text.trim(),
+            landType: landType,
             area: _convertInputHectareToAcreStr(_areaController.text),
+            gutNumber: _gutNumberController.text.trim(),
             landOwnerName: landType == 'BLOOD_RELATION'
                 ? _landOwnerNameController.text.trim()
                 : null,
             relationType: landType == 'BLOOD_RELATION'
                 ? _landRelationTypeController.text.trim().toUpperCase()
                 : null,
+            landImages: downloaded,
           );
         }
       }
 
       if (!primarySuccess) return; // Stop if primary failed
 
-      // Step 3b: Optional Blood Relation Land Details
+      // Step 3b: Optional Additional Land Details
       bool bloodSuccess = true; // Default to true if not applicable
 
-      if (_bloodRelationAreaController.text.trim().isNotEmpty ||
-          _bloodRelationLandDocuments.isNotEmpty) {
-        final landController =
-            Provider.of<LandController>(context, listen: false);
+      final landController =
+          Provider.of<LandController>(context, listen: false);
 
-        if (_bloodRelationLandDocuments.isNotEmpty) {
-          bloodSuccess = await landController.addFarmerLands(
-            context: context,
-            farmerId: farmerId,
-            villageAdd: _landVillageController.text.trim(),
-            taluka: _landTalukaController.text.trim(),
-            district: _landDistrictController.text.trim(),
-            landType: 'BLOOD_RELATION',
-            area: _convertInputHectareToAcreStr(
-                _bloodRelationAreaController.text),
-            landOwnerName: _bloodRelationOwnerNameController.text.trim(),
-            relationType:
-                _bloodRelationRelationTypeController.text.trim().toUpperCase(),
-            landImages: _bloodRelationLandDocuments,
-          );
-        } else if (_bloodRelationAreaController.text.trim().isNotEmpty &&
-            _bloodRelationLandDocuments.isEmpty &&
-            _bloodRelationLandDocumentUrls.isEmpty) {
-          if (mounted) {
-            ToastMessage.show(context,
-                message: 'Please upload blood relation land document',
-                isError: true);
+      for (final entry in _additionalLands) {
+        final addArea = entry.areaController.text.trim();
+        final addType = entry.landTypeController.text.trim();
+        if (addArea.isNotEmpty || entry.documents.isNotEmpty) {
+          if (entry.documents.isNotEmpty) {
+            final success = await landController.addFarmerLands(
+              context: context,
+              farmerId: farmerId,
+              villageAdd: _landVillageController.text.trim(),
+              taluka: _landTalukaController.text.trim(),
+              district: _landDistrictController.text.trim(),
+              landType: addType,
+              area: _convertInputHectareToAcreStr(addArea),
+              gutNumber: entry.gutNumberController.text.trim(),
+              landOwnerName: addType == 'BLOOD_RELATION'
+                  ? entry.ownerNameController.text.trim()
+                  : null,
+              relationType: addType == 'BLOOD_RELATION'
+                  ? entry.relationTypeController.text.trim().toUpperCase()
+                  : null,
+              landImages: entry.documents,
+            );
+            if (!success) bloodSuccess = false;
+          } else if (addArea.isNotEmpty &&
+              entry.documents.isEmpty &&
+              entry.documentUrls.isEmpty) {
+            if (mounted) {
+              ToastMessage.show(context,
+                  message: 'Please upload additional land document',
+                  isError: true);
+            }
+            bloodSuccess = false;
           }
-          bloodSuccess = false;
         }
+        if (!bloodSuccess) break;
       }
 
       if (primarySuccess && bloodSuccess) {
@@ -1253,11 +1309,9 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     return _areaController.text.trim().isNotEmpty ||
         _landDocuments.isNotEmpty ||
         _landDocumentUrls.isNotEmpty ||
-        _bloodRelationAreaController.text.trim().isNotEmpty ||
-        _bloodRelationLandDocuments.isNotEmpty ||
-        _bloodRelationLandDocumentUrls.isNotEmpty ||
         _landOwnerNameController.text.trim().isNotEmpty ||
-        _landRelationTypeController.text.trim().isNotEmpty;
+        _landRelationTypeController.text.trim().isNotEmpty ||
+        _additionalLands.any((e) => e.hasData);
   }
 
   void _resetForm() {
@@ -1272,9 +1326,6 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     _areaController.clear();
     _landOwnerNameController.clear();
     _landRelationTypeController.clear();
-    _bloodRelationAreaController.clear();
-    _bloodRelationOwnerNameController.clear();
-    _bloodRelationRelationTypeController.clear();
     _landVillageController.clear();
     _landTalukaController.clear();
     _landDistrictController.clear();
@@ -1294,7 +1345,6 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       _panImage = null;
       _licenseImage = null;
       _landDocuments = [];
-      _bloodRelationLandDocuments = [];
       _passbookImage = null;
 
       _profileImageUrl = null;
@@ -1302,10 +1352,13 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       _panImageUrl = null;
       _licenseImageUrl = null;
       _landDocumentUrls = [];
-      _bloodRelationLandDocumentUrls = [];
       _passbookImageUrl = null;
 
-      _showBloodRelationLand = false;
+      for (final entry in _additionalLands) {
+        entry.areaController.removeListener(_onAreaChanged);
+        entry.dispose();
+      }
+      _additionalLands.clear();
       _selectedBankId = null;
       _farmerBankRecordId = null;
     });
@@ -1374,9 +1427,6 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     _areaController.clear();
     _landOwnerNameController.clear();
     _landRelationTypeController.clear();
-    _bloodRelationAreaController.clear();
-    _bloodRelationOwnerNameController.clear();
-    _bloodRelationRelationTypeController.clear();
     _landVillageController.clear();
     _landTalukaController.clear();
     _landDistrictController.clear();
@@ -1394,7 +1444,6 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     _panImage = null;
     _licenseImage = null;
     _landDocuments = [];
-    _bloodRelationLandDocuments = [];
     _passbookImage = null;
 
     _profileImageUrl = null;
@@ -1402,10 +1451,13 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     _panImageUrl = null;
     _licenseImageUrl = null;
     _landDocumentUrls = [];
-    _bloodRelationLandDocumentUrls = [];
     _passbookImageUrl = null;
 
-    _showBloodRelationLand = false;
+    for (final entry in _additionalLands) {
+      entry.areaController.removeListener(_onAreaChanged);
+      entry.dispose();
+    }
+    _additionalLands.clear();
 
     _selectedBankId = null;
     _farmerBankRecordId = null;
@@ -2266,20 +2318,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                             ],
                           ),
                         ),
-                        SizedBox(width: 12.w),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              _buildFieldLabel('Gut No. *'),
-                              _buildTextField(
-                                controller: _gutNumberController,
-                                validator: (value) =>
-                                    value?.isEmpty == true ? 'Required' : null,
-                              ),
-                            ],
-                          ),
-                        ),
+
                       ],
                     ),
                   ],
@@ -2572,6 +2611,13 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
               ),
             ),
             SizedBox(height: 12.h),
+            _buildFieldLabel('Gut No. *'),
+            _buildTextField(
+              controller: _gutNumberController,
+              validator: (value) =>
+                  value?.isEmpty == true ? 'Required' : null,
+            ),
+            SizedBox(height: 12.h),
             _buildFieldLabel('Land Type'),
             Container(
               padding: EdgeInsets.symmetric(horizontal: 12.w),
@@ -2686,147 +2732,173 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
               },
             ),
             SizedBox(height: 16.h),
-            if (!_showBloodRelationLand)
-              Center(
-                child: TextButton.icon(
-                  onPressed: () {
-                    setState(() {
-                      _showBloodRelationLand = true;
-                    });
-                  },
-                  icon: Icon(Icons.add_circle_outline, color: primeryColor),
-                  label: Text(
-                    'Add More Land',
-                    style: TextStyle(
-                      fontSize: 14.sp,
-                      color: primeryColor,
-                      fontWeight: FontWeight.w600,
-                      fontFamily: FontFamily.jost,
-                    ),
-                  ),
-                ),
-              ),
-            if (_showBloodRelationLand) ...[
-              const Divider(),
-              SizedBox(height: 12.h),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  _buildSectionLabel('Blood Relation Land Details'),
-                  IconButton(
-                    onPressed: () {
-                      setState(() {
-                        _showBloodRelationLand = false;
-                        _bloodRelationAreaController.clear();
-                        _bloodRelationOwnerNameController.clear();
-                        _bloodRelationRelationTypeController.clear();
-                        _bloodRelationLandDocuments = [];
-                        // Note: Not clearing _bloodRelationLandDocumentUrls here to avoid accidental loss
-                        // but visibility will hide it.
-                      });
-                    },
-                    icon: Icon(Icons.close,
-                        color: Colors.red.shade400, size: 20.sp),
-                  ),
-                ],
-              ),
-              SizedBox(height: 8.h),
-              _buildFieldLabel('Land Type'),
-              Container(
-                padding: EdgeInsets.symmetric(horizontal: 12.w),
-                decoration: BoxDecoration(
-                  color: whiteColor,
-                  borderRadius: BorderRadius.circular(6.r),
-                  border: Border.all(color: Colors.grey.withOpacity(0.4)),
-                ),
-                child: DropdownButtonHideUnderline(
-                  child: DropdownButton<String>(
-                    value: 'BLOOD_RELATION',
-                    isExpanded: true,
-                    items: [
-                      DropdownMenuItem(
-                        value: 'BLOOD_RELATION',
-                        child: Text('BLOOD_RELATION',
-                            style: TextStyle(
-                                fontSize: 14.sp, fontFamily: FontFamily.jost)),
-                      ),
-                    ],
-                    onChanged: (value) {},
-                  ),
-                ),
-              ),
-              SizedBox(height: 12.h),
-              _buildFieldLabel('Land Owner Name'),
-              _buildTextField(
-                controller: _bloodRelationOwnerNameController,
-                validator: (value) {
-                  if (_showBloodRelationLand &&
-                      (_bloodRelationAreaController.text.trim().isNotEmpty ||
-                          _bloodRelationLandDocuments.isNotEmpty ||
-                          _bloodRelationLandDocumentUrls.isNotEmpty)) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter land owner name';
-                    }
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: 12.h),
-              _buildFieldLabel('Relation with Farmer'),
-              _buildTextField(
-                controller: _bloodRelationRelationTypeController,
-                validator: (value) {
-                  if (_showBloodRelationLand &&
-                      (_bloodRelationAreaController.text.trim().isNotEmpty ||
-                          _bloodRelationLandDocuments.isNotEmpty ||
-                          _bloodRelationLandDocumentUrls.isNotEmpty)) {
-                    if (value == null || value.trim().isEmpty) {
-                      return 'Please enter relation (e.g. FATHER, MOTHER)';
-                    }
-                  }
-                  return null;
-                },
-              ),
-              SizedBox(height: 12.h),
-              _buildFieldLabel('Area (in Hectares)'),
-              _buildTextField(
-                controller: _bloodRelationAreaController,
-                keyboardType:
-                    const TextInputType.numberWithOptions(decimal: true),
-              ),
-              if (_bloodRelationAreaController.text.trim().isNotEmpty) ...[
-                SizedBox(height: 4.h),
-                Text(
-                  _getAcreEquivalent(_bloodRelationAreaController.text),
+            for (var i = 0; i < _additionalLands.length; i++)
+              _buildAdditionalLandCard(_additionalLands[i], i),
+            Center(
+              child: TextButton.icon(
+                onPressed: _addAdditionalLand,
+                icon: Icon(Icons.add_circle_outline, color: primeryColor),
+                label: Text(
+                  'Add More Land',
                   style: TextStyle(
-                    fontSize: 12.sp,
+                    fontSize: 14.sp,
                     color: primeryColor,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     fontFamily: FontFamily.jost,
                   ),
                 ),
-              ],
-              SizedBox(height: 10.h),
-              _buildMultiImageUpload(
-                onAdd: () => _pickImage('BLOOD_RELATION_LAND'),
-                selectedFiles: _bloodRelationLandDocuments,
-                remoteUrls: _bloodRelationLandDocumentUrls,
-                onRemoveLocal: (index) {
-                  setState(() {
-                    _bloodRelationLandDocuments.removeAt(index);
-                  });
-                },
-                onRemoveRemote: (index) {
-                  setState(() {
-                    _bloodRelationLandDocumentUrls.removeAt(index);
-                  });
-                },
               ),
-            ],
+            ),
           ],
         ),
       ),
     );
+  }
+
+  Widget _buildAdditionalLandCard(_AdditionalLandEntry entry, int index) {
+    final isBloodRelation =
+        entry.landTypeController.text == 'BLOOD_RELATION';
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Divider(),
+        SizedBox(height: 12.h),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+          children: [
+            _buildSectionLabel('Additional Land ${index + 1} Details'),
+            IconButton(
+              onPressed: () => _removeAdditionalLand(index),
+              icon: Icon(Icons.close, color: Colors.red.shade400, size: 20.sp),
+            ),
+          ],
+        ),
+        SizedBox(height: 8.h),
+        _buildFieldLabel('Land Type'),
+        Container(
+          padding: EdgeInsets.symmetric(horizontal: 12.w),
+          decoration: BoxDecoration(
+            color: whiteColor,
+            borderRadius: BorderRadius.circular(6.r),
+            border: Border.all(color: Colors.grey.withOpacity(0.4)),
+          ),
+          child: DropdownButtonHideUnderline(
+            child: DropdownButton<String>(
+              value: ['OWN', 'BLOOD_RELATION']
+                      .contains(entry.landTypeController.text)
+                  ? entry.landTypeController.text
+                  : 'OWN',
+              isExpanded: true,
+              items: [
+                DropdownMenuItem(
+                  value: 'OWN',
+                  child: Text('OWN',
+                      style: TextStyle(
+                          fontSize: 14.sp, fontFamily: FontFamily.jost)),
+                ),
+                DropdownMenuItem(
+                  value: 'BLOOD_RELATION',
+                  child: Text('BLOOD_RELATION',
+                      style: TextStyle(
+                          fontSize: 14.sp, fontFamily: FontFamily.jost)),
+                ),
+              ],
+              onChanged: (value) {
+                if (value != null) {
+                  setState(() {
+                    entry.landTypeController.text = value;
+                  });
+                }
+              },
+            ),
+          ),
+        ),
+        SizedBox(height: 12.h),
+        _buildFieldLabel('Gut No. *'),
+        _buildTextField(
+          controller: entry.gutNumberController,
+          validator: (value) => value?.isEmpty == true ? 'Required' : null,
+        ),
+        if (isBloodRelation) ...[
+          SizedBox(height: 12.h),
+          _buildFieldLabel('Land Owner Name'),
+          _buildTextField(
+            controller: entry.ownerNameController,
+            validator: (value) {
+              if (entry.hasData && isBloodRelation) {
+                if (value == null || value.isEmpty) {
+                  return 'Please enter land owner name';
+                }
+              }
+              return null;
+            },
+          ),
+          SizedBox(height: 12.h),
+          _buildFieldLabel('Relation with Farmer'),
+          _buildTextField(
+            controller: entry.relationTypeController,
+            validator: (value) {
+              if (entry.hasData && isBloodRelation) {
+                if (value == null || value.trim().isEmpty) {
+                  return 'Please enter relation (e.g. FATHER, MOTHER)';
+                }
+              }
+              return null;
+            },
+          ),
+        ],
+        SizedBox(height: 12.h),
+        _buildFieldLabel('Area (in Hectares)'),
+        _buildTextField(
+          controller: entry.areaController,
+          keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        ),
+        if (entry.areaController.text.trim().isNotEmpty) ...[
+          SizedBox(height: 4.h),
+          Text(
+            _getAcreEquivalent(entry.areaController.text),
+            style: TextStyle(
+              fontSize: 12.sp,
+              color: primeryColor,
+              fontWeight: FontWeight.w500,
+              fontFamily: FontFamily.jost,
+            ),
+          ),
+        ],
+        SizedBox(height: 10.h),
+        _buildMultiImageUpload(
+          onAdd: () => _pickImage('ADDITIONAL_LAND', index: index),
+          selectedFiles: entry.documents,
+          remoteUrls: entry.documentUrls,
+          onRemoveLocal: (i) {
+            setState(() {
+              entry.documents.removeAt(i);
+            });
+          },
+          onRemoveRemote: (i) {
+            setState(() {
+              entry.documentUrls.removeAt(i);
+            });
+          },
+        ),
+      ],
+    );
+  }
+
+  void _addAdditionalLand() {
+    final entry = _AdditionalLandEntry();
+    entry.areaController.addListener(_onAreaChanged);
+    setState(() {
+      _additionalLands.add(entry);
+    });
+  }
+
+  void _removeAdditionalLand(int index) {
+    setState(() {
+      final entry = _additionalLands.removeAt(index);
+      entry.areaController.removeListener(_onAreaChanged);
+      entry.dispose();
+    });
   }
 
   Widget _buildSectionLabel(String label) {
@@ -3264,6 +3336,35 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     return ['jpg', 'jpeg', 'png', 'bmp'].contains(extension);
   }
 
+  String _buildFullImageUrl(String url) {
+    if (url.startsWith('http')) return url;
+    final path = url.startsWith('/') ? url : '/$url';
+    return '${ApiConstants.imageBaseUrl}$path';
+  }
+
+  Future<File?> _downloadImageToFile(String url) async {
+    try {
+      final headers =
+          _authToken != null ? {'Authorization': 'Bearer $_authToken'} : null;
+      final res = await http.get(
+        Uri.parse(_buildFullImageUrl(url)),
+        headers: headers,
+      );
+      if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
+        final dir = await getTemporaryDirectory();
+        final ext = url.toLowerCase().contains('.png') ? '.png' : '.jpg';
+        final file = File(
+            '${dir.path}/land_${DateTime.now().millisecondsSinceEpoch}$ext');
+        await file.writeAsBytes(res.bodyBytes);
+        return file;
+      }
+      debugPrint('Download failed for $url: ${res.statusCode}');
+    } catch (e) {
+      debugPrint('Download failed for $url: $e');
+    }
+    return null;
+  }
+
   Widget _buildImageUpload({
     required VoidCallback onTap,
     File? selectedFile,
@@ -3283,7 +3384,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
 
     final bool isSelectedFileImage =
         selectedFile != null && _isImageFile(selectedFile.path);
-    final bool isRemoteUrlImage = fullUrl != null && _isImageFile(fullUrl);
+    final bool isRemoteUrlImage = fullUrl != null;
     final bool hasImage = isSelectedFileImage || isRemoteUrlImage;
 
     return GestureDetector(
@@ -3549,7 +3650,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                                   width: double.infinity,
                                   height: double.infinity,
                                 )
-                              : (fullUrl != null && _isImageFile(fullUrl)
+                              : (fullUrl != null
                                   ? Image.network(
                                       fullUrl,
                                       fit: BoxFit.cover,
@@ -3559,6 +3660,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                                           ? {'Authorization': 'Bearer $_authToken'}
                                           : null,
                                       errorBuilder: (context, error, stackTrace) {
+                                        debugPrint(
+                                            'Image load error for $fullUrl: $error');
                                         return Center(
                                             child: Icon(Icons.error_outline,
                                                 color: Colors.grey));

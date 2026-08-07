@@ -16,6 +16,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:soya_app/core/widgets/tost_message.dart';
 import 'package:soya_app/core/widgets/empty_state_widget.dart';
 import 'package:open_file/open_file.dart';
+import 'package:soya_app/features/reports/view/widgets/report_generation_date.dart';
 import 'package:flutter/services.dart';
 import 'dart:io';
 import 'package:url_launcher/url_launcher.dart';
@@ -113,7 +114,8 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                           valueColor: AlwaysStoppedAnimation<Color>(appColor),
                         ),
                       if (filteredBills.isNotEmpty)
-                        Expanded(child: _buildReportTable(filteredBills))
+                        Expanded(
+                            child: _buildReportTable(filteredBills, controller))
                       else if (controller.isLoading)
                         const Expanded(
                             child: Center(child: CircularProgressIndicator()))
@@ -146,14 +148,20 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
             icon: Icon(Icons.arrow_back_ios, size: 20.sp, color: blackColor),
             onPressed: () => Navigator.pop(context),
           ),
-          Text(
-            "Billing Report",
-            style: TextStyle(
-              fontSize: 24.sp,
-              fontWeight: FontWeight.bold,
-              fontFamily: FontFamily.georgia,
-              color: blackColor,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Billing Report",
+                style: TextStyle(
+                  fontSize: 24.sp,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: FontFamily.georgia,
+                  color: blackColor,
+                ),
+              ),
+              const ReportGenerationDate(),
+            ],
           ),
         ],
       ),
@@ -564,7 +572,8 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
     );
   }
 
-  Widget _buildReportTable(List<BillModel> bills) {
+  Widget _buildReportTable(
+      List<BillModel> bills, BillingController controller) {
     return SingleChildScrollView(
       physics: const BouncingScrollPhysics(),
       child: Container(
@@ -598,8 +607,12 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
               columns: [
                 _buildColumn("Profile"),
                 _buildColumn("Farmer Name"),
+                _buildColumn("Commodity"),
+                _buildColumn("Purchase Point Name"),
                 _buildColumn("Transaction Date"),
                 _buildColumn("Kissan ID"),
+                _buildColumn("No of Bags"),
+                _buildColumn("GRN No"),
                 _buildColumn("KP-No"),
                 _buildColumn("Gross Weight"),
                 _buildColumn("Bag Weight"),
@@ -616,9 +629,7 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
               ],
               rows: bills.map((bill) {
                 final farmerName = bill.farmer?.name ?? "N/A";
-                final rawDate = bill.billDate ?? "N/A";
-                final date =
-                    rawDate.contains('T') ? rawDate.split('T')[0] : rawDate;
+                final date = formatReportDate(bill.billDate);
 
                 final unit = bill.primaryUnit ??
                     (bill.items?.isNotEmpty == true
@@ -650,10 +661,15 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                       fontSize: 12.sp,
                     )),
                     DataCell(_buildNameCell(farmerName)),
+                    DataCell(Text("SOYA SEED", style: _cellStyle())),
+                    DataCell(Text(bill.vendor?.villageAdd ?? "N/A", style: _cellStyle())),
                     DataCell(Text(date, style: _cellStyle())),
                     DataCell(Text((bill.farmer?.id != null && bill.farmer!.id!.length > 6)
                         ? bill.farmer!.id!.substring(bill.farmer!.id!.length - 6)
                         : (bill.farmer?.id ?? "N/A"),
+                        style: _cellStyle())),
+                    DataCell(Text("${bill.bagCount ?? 'N/A'}", style: _cellStyle())),
+                    DataCell(Text(bill.vendor?.grnNumber ?? bill.grnNo ?? "N/A",
                         style: _cellStyle())),
                     DataCell(Text(bill.vendorBillSeq?.toString() ?? bill.billNo ?? bill.grnNo ?? "N/A",
                         style: _cellStyle())),
@@ -761,11 +777,52 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                     ),
                   ],
                 );
-              }).toList(),
+              }).toList()
+              ..add(_buildTotalsRow(controller, bills)),
             ),
           ),
         ),
       ),
+    );
+  }
+
+  DataRow _buildTotalsRow(BillingController controller, List<BillModel> bills) {
+    final unit = bills.isNotEmpty ? bills.first.primaryUnit ?? 'KG' : 'KG';
+    final num gross = controller.totalGrossWeight;
+    final num bag = controller.totalBagWeight;
+    final num net = controller.totalNetWeight;
+
+    DataCell _empty() => const DataCell(SizedBox());
+    DataCell _value(String text) => DataCell(Text(
+          text,
+          style: _cellStyle(isBold: true, color: appColor),
+        ));
+
+    return DataRow(
+      color: WidgetStateProperty.all(appColor.withOpacity(0.08)),
+      cells: [
+        _empty(),
+        _value("Total"),
+        _empty(),
+        _empty(),
+        _empty(),
+        _empty(),
+        _value("${controller.totalBags.toInt()}"),
+        _empty(),
+        _empty(),
+        _value("${gross.toStringAsFixed(2)} $unit"),
+        _value("${bag.toStringAsFixed(2)} $unit"),
+        _value("${net.toStringAsFixed(2)} $unit"),
+        _value("${controller.avgFm.toStringAsFixed(2)}%"),
+        _value("${controller.avgDamage.toStringAsFixed(2)}%"),
+        _value("${controller.avgMoisture.toStringAsFixed(2)}%"),
+        _empty(),
+        _value("₹${controller.totalAmount.toStringAsFixed(2)}"),
+        _empty(),
+        _empty(),
+        _empty(),
+        _empty(),
+      ],
     );
   }
 

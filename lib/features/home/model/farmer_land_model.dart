@@ -59,6 +59,7 @@ class LandData {
   final String? district;
   final String? landOwnerName;
   final String? relationType;
+  final String? gutNumber;
 
   LandData({
     this.id,
@@ -73,9 +74,15 @@ class LandData {
     this.district,
     this.landOwnerName,
     this.relationType,
+    this.gutNumber,
   });
 
   factory LandData.fromJson(Map<String, dynamic> json) {
+    final List<String>? urls = (json['documentUrls'] as List?)
+        ?.whereType<String>()
+        .where((u) => u.isNotEmpty)
+        .toList();
+    final String? single = json['documentUrl'] as String?;
     return LandData(
       id: json['id'] as String?,
       farmerId: json['farmerId'] as String?,
@@ -86,13 +93,14 @@ class LandData {
               ? (json['area'] as int).toDouble()
               : json['area'] as double?)
           : null,
-      documentUrl: json['documentUrl'] as String?,
+      documentUrl: (urls != null && urls.isNotEmpty) ? urls.first : single,
       createdAt: json['createdAt'] as String?,
       villageAdd: json['villageAdd'] as String?,
       taluka: json['taluka'] as String?,
       district: json['district'] as String?,
       landOwnerName: json['landOwnerName'] as String?,
       relationType: json['relationType'] as String?,
+      gutNumber: json['gutNumber'] as String?,
     );
   }
 
@@ -110,6 +118,7 @@ class LandData {
       'district': district,
       'landOwnerName': landOwnerName,
       'relationType': relationType,
+      'gutNumber': gutNumber,
     };
   }
 }

@@ -49,6 +49,7 @@ class DocumentData {
   final String? farmerId;
   final String? type;
   final String? imageUrl;
+  final List<String>? documentUrls;
   final String? panNo;
   final String? createdAt;
 
@@ -57,16 +58,23 @@ class DocumentData {
     this.farmerId,
     this.type,
     this.imageUrl,
+    this.documentUrls,
     this.panNo,
     this.createdAt,
   });
 
   factory DocumentData.fromJson(Map<String, dynamic> json) {
+    final List<String>? urls = (json['documentUrls'] as List?)
+        ?.whereType<String>()
+        .where((u) => u.isNotEmpty)
+        .toList();
+    final String? single = json['imageUrl'] as String?;
     return DocumentData(
       id: json['id'] as String?,
       farmerId: json['farmerId'] as String?,
       type: json['type'] as String?,
-      imageUrl: json['imageUrl'] as String?,
+      imageUrl: (urls != null && urls.isNotEmpty) ? urls.first : single,
+      documentUrls: urls,
       panNo: json['panNo'] as String?,
       createdAt: json['createdAt'] as String?,
     );
@@ -78,6 +86,7 @@ class DocumentData {
       'farmerId': farmerId,
       'type': type,
       'imageUrl': imageUrl,
+      'documentUrls': documentUrls,
       'panNo': panNo,
       'createdAt': createdAt,
     };

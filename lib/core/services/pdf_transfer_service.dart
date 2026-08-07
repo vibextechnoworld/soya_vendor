@@ -499,7 +499,7 @@ class PdfTransferService {
                       children: [
                         pw.Padding(
                             padding: const pw.EdgeInsets.all(6),
-                            child: pw.Text("Kaltani Bags",
+                            child: pw.Text("Kaltani Katta",
                                 style: pw.TextStyle(font: ttf, fontSize: 9))),
                         pw.Padding(
                             padding: const pw.EdgeInsets.all(6),

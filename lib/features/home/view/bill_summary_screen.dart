@@ -1294,6 +1294,12 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                 if (!context.mounted) return;
 
                 if (success) {
+                  // Re-fetch finalized bill so print/share use confirmed
+                  // data including advance amount
+                  await controller.fetchBillDetails(widget.billId);
+
+                  if (!context.mounted) return;
+
                   // 2. Show Return Bags Dialog
                   await _showReturnBagsDialog(
                     context,

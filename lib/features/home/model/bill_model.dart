@@ -11,6 +11,13 @@ class BillListModel {
   final num? averageRate;
   final num? totalAmount;
   final int? limit;
+  final num? totalBags;
+  final num? totalGrossWeight;
+  final num? totalBagWeight;
+  final num? totalNetWeight;
+  final num? avgFm;
+  final num? avgDamage;
+  final num? avgMoisture;
 
   BillListModel({
     this.success,
@@ -22,6 +29,13 @@ class BillListModel {
     this.averageRate,
     this.totalAmount,
     this.limit,
+    this.totalBags,
+    this.totalGrossWeight,
+    this.totalBagWeight,
+    this.totalNetWeight,
+    this.avgFm,
+    this.avgDamage,
+    this.avgMoisture,
   });
 
   static int? _parsePageInfo(
@@ -96,6 +110,34 @@ class BillListModel {
           json,
           ['totalAmount', 'total_amount', 'totAmount', 'tot_amount'],
           jsonData is Map ? jsonData : null),
+      totalBags: _parseNum(
+          json,
+          ['totalBags', 'total_bags', 'totalNoOfBags'],
+          jsonData is Map ? jsonData : null),
+      totalGrossWeight: _parseNum(
+          json,
+          ['totalGrossWeight', 'total_gross_weight'],
+          jsonData is Map ? jsonData : null),
+      totalBagWeight: _parseNum(
+          json,
+          ['totalBagWeight', 'total_bag_weight'],
+          jsonData is Map ? jsonData : null),
+      totalNetWeight: _parseNum(
+          json,
+          ['totalNetWeight', 'total_net_weight'],
+          jsonData is Map ? jsonData : null),
+      avgFm: _parseNum(
+          json,
+          ['avgFm', 'averageFm', 'avg_fm', 'totalFm'],
+          jsonData is Map ? jsonData : null),
+      avgDamage: _parseNum(
+          json,
+          ['avgDamage', 'averageDamage', 'avg_damage', 'totalDamage'],
+          jsonData is Map ? jsonData : null),
+      avgMoisture: _parseNum(
+          json,
+          ['avgMoisture', 'averageMoisture', 'avg_moisture', 'totalMoisture'],
+          jsonData is Map ? jsonData : null),
       limit: jsonData != null && jsonData is Map
           ? _toInt(jsonData['limit'])
           : null,
@@ -152,6 +194,7 @@ class BillModel {
   final GoniType? goniType;
   final List<BillGoni>? gonis;
   final FarmerData? farmer;
+  final BillVendor? vendor;
   final List<BillItem>? items;
   final List<BillDeduction>? deductions;
   final List<BillSlip>? slips;
@@ -207,6 +250,7 @@ class BillModel {
     this.goniType,
     this.gonis,
     this.farmer,
+    this.vendor,
     this.items,
     this.deductions,
     this.slips,
@@ -252,6 +296,9 @@ class BillModel {
           : null,
       farmer:
           json['farmer'] != null ? FarmerData.fromJson(json['farmer']) : null,
+      vendor: json['vendor'] != null
+          ? BillVendor.fromJson(json['vendor'] as Map<String, dynamic>)
+          : null,
       items: json['items'] != null
           ? (json['items'] as List).map((i) => BillItem.fromJson(i)).toList()
           : null,
@@ -307,6 +354,7 @@ class BillModel {
       'goniType': goniType?.toJson(),
       'gonis': gonis?.map((i) => i.toJson()).toList(),
       'farmer': farmer?.toJson(),
+      'vendor': vendor?.toJson(),
       'items': items?.map((i) => i.toJson()).toList(),
       'deductions': deductions?.map((i) => i.toJson()).toList(),
       'slips': slips?.map((i) => i.toJson()).toList(),
@@ -747,6 +795,42 @@ class PaymentModelDetail {
       'status': status,
       'paidDate': paidDate,
       'reference': reference,
+    };
+  }
+}
+
+class BillVendor {
+  final String? id;
+  final String? name;
+  final String? phone;
+  final String? grnNumber;
+  final String? villageAdd;
+
+  BillVendor({
+    this.id,
+    this.name,
+    this.phone,
+    this.grnNumber,
+    this.villageAdd,
+  });
+
+  factory BillVendor.fromJson(Map<String, dynamic> json) {
+    return BillVendor(
+      id: json['id'] as String?,
+      name: json['name'] as String?,
+      phone: json['phone'] as String?,
+      grnNumber: json['grnNumber'] as String?,
+      villageAdd: json['villageAdd'] as String?,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'name': name,
+      'phone': phone,
+      'grnNumber': grnNumber,
+      'villageAdd': villageAdd,
     };
   }
 }

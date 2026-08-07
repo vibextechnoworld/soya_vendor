@@ -9,6 +9,7 @@ import 'package:soya_app/util/colors.dart';
 import 'package:soya_app/util/font_family.dart';
 import 'package:intl/intl.dart';
 import 'package:soya_app/core/widgets/empty_state_widget.dart';
+import 'package:soya_app/features/reports/view/widgets/report_generation_date.dart';
 
 class RateHistoryReportScreen extends StatefulWidget {
   const RateHistoryReportScreen({super.key});
@@ -139,14 +140,20 @@ class _RateHistoryReportScreenState extends State<RateHistoryReportScreen> {
             icon: Icon(Icons.arrow_back_ios, size: 20.sp, color: blackColor),
             onPressed: () => Navigator.pop(context),
           ),
-          Text(
-            "Rate History",
-            style: TextStyle(
-              fontSize: 24.sp,
-              fontWeight: FontWeight.bold,
-              fontFamily: FontFamily.georgia,
-              color: blackColor,
-            ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                "Rate History",
+                style: TextStyle(
+                  fontSize: 24.sp,
+                  fontWeight: FontWeight.bold,
+                  fontFamily: FontFamily.georgia,
+                  color: blackColor,
+                ),
+              ),
+              const ReportGenerationDate(),
+            ],
           ),
         ],
       ),
@@ -306,13 +313,12 @@ class _RateHistoryReportScreenState extends State<RateHistoryReportScreen> {
               rows: history.map((item) {
                 // Parse date from 'date' field or 'createdAt' fallback
                 String displayDate = item.date ?? "";
-                if (displayDate.isEmpty && item.createdAt != null) {
-                  try {
-                    final parsed = DateTime.parse(item.createdAt!);
-                    displayDate = DateFormat('d/M/yyyy').format(parsed.toLocal());
-                  } catch (_) {
-                    displayDate = item.createdAt!.split('T')[0];
-                  }
+                if (displayDate.isNotEmpty) {
+                  displayDate = formatReportDate(displayDate);
+                }
+                if (displayDate.isEmpty || displayDate == "N/A") {
+                  displayDate =
+                      item.createdAt != null ? formatReportDate(item.createdAt) : "";
                 }
                 if (displayDate.isEmpty) {
                   displayDate = "N/A";
