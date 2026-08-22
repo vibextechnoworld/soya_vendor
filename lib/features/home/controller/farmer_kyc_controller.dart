@@ -16,6 +16,7 @@ import 'package:soya_app/features/home/model/farmer_document_model.dart';
 import 'package:soya_app/features/home/model/farmer_land_model.dart';
 import 'package:soya_app/features/home/model/farmer_list_model.dart';
 import 'package:soya_app/features/home/model/farmer_model.dart';
+import 'package:soya_app/util/string_utils.dart';
 
 enum FarmerSearchType { name, aadhaar, phone }
 
@@ -405,7 +406,7 @@ class FarmerKycController with ChangeNotifier {
     try {
       final response = await _apiService.post(
         Uri.parse(ApiConstants.createBankDetail).toString(),
-        body: {'bankName': bankName.trim()},
+        body: {'bankName': titleCase(bankName)},
       );
       if (response.statusCode == 201 || response.statusCode == 200) {
         final responseData = jsonDecode(response.body);

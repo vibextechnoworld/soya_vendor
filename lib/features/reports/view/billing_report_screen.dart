@@ -18,6 +18,7 @@ import 'package:soya_app/core/widgets/empty_state_widget.dart';
 import 'package:open_file/open_file.dart';
 import 'package:soya_app/features/reports/view/widgets/report_generation_date.dart';
 import 'package:flutter/services.dart';
+import 'package:soya_app/util/string_utils.dart';
 import 'dart:io';
 import 'package:url_launcher/url_launcher.dart';
 
@@ -471,7 +472,7 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
           final formattedPhone = farmerPhoneRaw.length == 10
               ? "91$farmerPhoneRaw"
               : farmerPhoneRaw;
-          final message = "Hello ${bill.farmer?.name ?? 'Customer'},\n\n"
+          final message = "Hello ${titleCaseOr(bill.farmer?.name, 'Customer')},\n\n"
               "Here is your Goods Received Note (GRN) for the Soya purchase.\n\n"
               "Bill No: ${bill.billNo ?? 'N/A'}\n"
               "Net Payable: ₹${(bill.netPayable ?? 0).toStringAsFixed(2)}\n\n"
@@ -497,14 +498,14 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
               if (mounted) {
                 await Share.shareXFiles([XFile(file.path)],
                     text:
-                        'Here is the bill for ${bill.farmer?.name ?? 'Customer'}.');
+                        'Here is the bill for ${titleCaseOr(bill.farmer?.name, 'Customer')}.');
               }
             }
           } else {
             if (mounted) {
               await Share.shareXFiles([XFile(file.path)],
                   text:
-                      'Here is the bill for ${bill.farmer?.name ?? 'Customer'}.');
+                      'Here is the bill for ${titleCaseOr(bill.farmer?.name, 'Customer')}.');
             }
           }
           break;
@@ -628,7 +629,9 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                 _buildColumn("Actions"),
               ],
               rows: bills.map((bill) {
-                final farmerName = bill.farmer?.name ?? "N/A";
+                final farmerName = bill.farmer?.name == null
+                    ? "N/A"
+                    : titleCase(bill.farmer?.name);
                 final date = formatReportDate(bill.billDate);
 
                 final unit = bill.primaryUnit ??

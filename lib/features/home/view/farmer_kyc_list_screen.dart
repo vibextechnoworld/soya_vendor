@@ -5,6 +5,7 @@ import 'package:soya_app/core/widgets/header_widget.dart';
 import 'package:soya_app/features/home/controller/farmer_kyc_controller.dart';
 import 'package:soya_app/util/colors.dart';
 import 'package:soya_app/util/font_family.dart';
+import 'package:soya_app/util/string_utils.dart';
 
 class FarmerKycListScreen extends StatefulWidget {
   const FarmerKycListScreen({super.key});
@@ -164,7 +165,7 @@ class _FarmerKycListScreenState extends State<FarmerKycListScreen> {
                   children: [
                     Expanded(
                       child: Text(
-                        farmer.name ?? 'Unknown Farmer',
+                        titleCaseOr(farmer.name, 'Unknown Farmer'),
                         style: TextStyle(
                           fontSize: 16.sp,
                           fontFamily: FontFamily.jost,

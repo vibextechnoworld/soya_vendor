@@ -21,6 +21,7 @@ import 'package:soya_app/features/home/model/farmer_model.dart';
 import 'package:soya_app/core/constants/api_constants.dart';
 import 'package:soya_app/util/colors.dart';
 import 'package:soya_app/util/font_family.dart';
+import 'package:soya_app/util/string_utils.dart';
 import 'package:soya_app/features/location/controller/location_provider.dart';
 import 'package:soya_app/features/location/model/location_model.dart';
 import 'package:dropdown_search/dropdown_search.dart';
@@ -430,12 +431,12 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
 
   void _fillBankData(BankData bank) {
     setState(() {
-      _bankNameController.text = bank.bankName ?? '';
+      _bankNameController.text = titleCase(bank.bankName);
       _accountNoController.text = bank.accountNo ?? '';
       _confirmAccountNoController.text = bank.accountNo ?? '';
       _ifscController.text = bank.ifsc ?? '';
       _holderNameController.text = bank.holderName ?? '';
-      _branchNameController.text = bank.branchName ?? '';
+      _branchNameController.text = titleCase(bank.branchName);
 
       // Store farmer's bank record ID for update URL
       _farmerBankRecordId = bank.id;
@@ -508,7 +509,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
 
   Future<void> _pickImage(String type, {int? index}) async {
     try {
-      final pickedFile = await ImagePickerService.pickFile(context);
+      final pickedFile =
+          await ImagePickerService.pickFile(context, enableCrop: true);
       if (pickedFile != null) {
         // Save file permanently to avoid PathNotFoundException from cache clearing
         final persistentFile = await _saveFilePermanently(pickedFile, type);
@@ -940,11 +942,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             farmerId: farmerId,
             bankId: _selectedBankId,
             farmerBankRecordId: _farmerBankRecordId,
-            bankName: _bankNameController.text.trim(),
+            bankName: titleCase(_bankNameController.text),
             accountNo: _accountNoController.text.trim(),
             ifsc: _ifscController.text.trim(),
             holderName: _holderNameController.text.trim(),
-            branchName: _branchNameController.text.trim(),
+            branchName: titleCase(_branchNameController.text),
             passbookImage: _passbookImage,
             isPrimary: true,
           );
@@ -953,11 +955,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             context: context,
             farmerId: farmerId,
             bankId: _selectedBankId,
-            bankName: _bankNameController.text.trim(),
+            bankName: titleCase(_bankNameController.text),
             accountNo: _accountNoController.text.trim(),
             ifsc: _ifscController.text.trim(),
             holderName: _holderNameController.text.trim(),
-            branchName: _branchNameController.text.trim(),
+            branchName: titleCase(_branchNameController.text),
             passbookImage: _passbookImage!,
             isPrimary: true,
           );
@@ -1091,7 +1093,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
           final farmer = controller.searchResults[index];
           return ListTile(
             dense: true,
-            title: Text(farmer.name ?? 'Unknown',
+            title: Text(titleCaseOr(farmer.name, 'Unknown'),
                 style: TextStyle(
                     fontSize: 14.sp,
                     fontFamily: FontFamily.jost,
@@ -1104,7 +1106,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                     color: greyColor)),
             onTap: () {
               controller.setSelectedFarmer(farmer);
-              _searchController.text = farmer.name ?? '';
+              _searchController.text = titleCase(farmer.name);
               FocusScope.of(context).unfocus();
             },
           );
@@ -1208,7 +1210,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                 );
                 if (selected != null) {
                   controller.setSelectedFarmer(selected);
-                  _searchController.text = selected.name ?? '';
+                  _searchController.text = titleCase(selected.name);
                   FocusScope.of(context).unfocus();
                 }
               },
@@ -1993,7 +1995,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                           itemBuilder: (context, index) {
                             final farmer = controller.searchResults[index];
                             return ListTile(
-                              title: Text(farmer.name ?? '',
+                              title: Text(titleCaseOr(farmer.name, ''),
                                   style: TextStyle(
                                       fontSize: 14.sp,
                                       fontWeight: FontWeight.bold,
@@ -2942,13 +2944,13 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                     banks + [BankDetailData(id: 'other', bankName: 'Other')]);
               },
               itemAsString: (item) {
-                final name = item.bankName ?? '';
+                final name = titleCase(item.bankName);
                 final ifsc = item.ifsc ?? '';
                 final branch = item.branchName ?? '';
 
                 String display = name;
                 if (branch.isNotEmpty) {
-                  display += ' - $branch';
+                  display += ' - ${titleCase(branch)}';
                 }
                 if (ifsc.isNotEmpty) {
                   display += ' ($ifsc)';
@@ -2979,9 +2981,9 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                       _ifscController.clear();
                       _branchNameController.clear();
                     } else {
-                      _bankNameController.text = value.bankName ?? '';
+                      _bankNameController.text = titleCase(value.bankName);
                       _ifscController.text = value.ifsc ?? '';
-                      _branchNameController.text = value.branchName ?? '';
+                      _branchNameController.text = titleCase(value.branchName);
                       _otherBankNameController.clear();
                     }
                   });
@@ -3171,7 +3173,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                       .createMasterBankDetail(newBankController.text);
                   if (newBank != null) {
                     setState(() {
-                      _bankNameController.text = newBank.bankName ?? '';
+                      _bankNameController.text = titleCase(newBank.bankName);
                     });
                     if (context.mounted) Navigator.pop(context);
                   }

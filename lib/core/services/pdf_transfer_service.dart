@@ -10,7 +10,7 @@ import 'package:soya_app/features/home/model/vendor_transfer_list_model.dart';
 class PdfTransferService {
   static Future<Uint8List> generateDispatchPdf(
       VendorTransferData transfer) async {
-    final ttf = await PdfGoogleFonts.jostRegular();
+    final ttf = await PdfGoogleFonts.jostBold();
     final ttfBold = await PdfGoogleFonts.jostBold();
 
     final pdf = pw.Document(
@@ -323,7 +323,7 @@ class PdfTransferService {
 
   static Future<Uint8List> generateReceivePdf(
       VendorTransferData transfer) async {
-    final ttf = await PdfGoogleFonts.jostRegular();
+    final ttf = await PdfGoogleFonts.jostBold();
     final ttfBold = await PdfGoogleFonts.jostBold();
 
     final pdf = pw.Document(

@@ -5,6 +5,7 @@ import 'package:soya_app/features/home/controller/farmer_kyc_controller.dart';
 import 'package:soya_app/routes/app_routes.dart';
 import 'package:soya_app/util/colors.dart';
 import 'package:soya_app/util/font_family.dart';
+import 'package:soya_app/util/string_utils.dart';
 
 class ResumeKycSearchDialog extends StatefulWidget {
   const ResumeKycSearchDialog({super.key});
@@ -103,7 +104,7 @@ class _ResumeKycSearchDialogState extends State<ResumeKycSearchDialog> {
                           child: Icon(Icons.person, color: primeryColor),
                         ),
                         title: Text(
-                          farmer.name ?? 'Unknown',
+                          titleCaseOr(farmer.name, 'Unknown'),
                           style: const TextStyle(
                             fontWeight: FontWeight.w600,
                             fontFamily: FontFamily.jost,

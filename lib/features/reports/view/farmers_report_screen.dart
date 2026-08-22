@@ -15,6 +15,7 @@ import 'package:soya_app/routes/app_routes.dart';
 import 'package:soya_app/features/home/controller/billing_controller.dart';
 import 'package:soya_app/features/bottom_navigation_bar/controller/bottom_navbar_controller.dart';
 import 'package:soya_app/features/reports/view/widgets/report_generation_date.dart';
+import 'package:soya_app/util/string_utils.dart';
 
 class FarmersReportScreen extends StatefulWidget {
   const FarmersReportScreen({super.key});
@@ -328,7 +329,7 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
                 _buildColumn("Actions"),
               ],
               rows: farmers.map((farmer) {
-                final name = farmer.name ?? "N/A";
+                final name = titleCase(farmer.name ?? "N/A");
                 final phone = farmer.phone ?? "N/A";
                 final aadhaar = farmer.aadhaarNo ?? "N/A";
 
@@ -372,7 +373,8 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
                                 context: context,
                                 builder: (context) => FarmerBagSummaryDialog(
                                   farmerId: farmer.id ?? "",
-                                  farmerName: farmer.name ?? "Farmer",
+                                  farmerName:
+                                      farmer.name == null ? "Farmer" : titleCase(farmer.name),
                                 ),
                               );
                             },
@@ -492,7 +494,7 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          farmer.name ?? "N/A",
+                          titleCase(farmer.name),
                           style: TextStyle(
                             fontSize: 22.sp,
                             fontWeight: FontWeight.bold,
@@ -608,8 +610,7 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
                     context,
                     AppRoutes.billingReport,
                     arguments: farmer.name,
-                  );
-                },
+                  );                },
                 style: ElevatedButton.styleFrom(
                   backgroundColor: appColor,
                   foregroundColor: whiteColor,
@@ -645,7 +646,7 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
                     context: context,
                     builder: (context) => FarmerBagSummaryDialog(
                       farmerId: farmer.id ?? "",
-                      farmerName: farmer.name ?? "Farmer",
+                      farmerName: titleCaseOr(farmer.name, "Farmer"),
                     ),
                   );
                 },
@@ -944,7 +945,9 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
                                   SizedBox(width: 8.w),
                                   Expanded(
                                     child: Text(
-                                      farmer.name ?? 'Farmer',
+                                      farmer.name == null
+                                          ? 'Farmer'
+                                          : titleCase(farmer.name),
                                       style: TextStyle(
                                         fontSize: 14.sp,
                                         fontWeight: FontWeight.bold,

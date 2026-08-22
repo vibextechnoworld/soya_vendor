@@ -16,6 +16,7 @@ import 'package:soya_app/features/home/model/goni_type_model.dart';
 import 'package:soya_app/routes/app_routes.dart';
 import 'package:soya_app/util/colors.dart';
 import 'package:soya_app/util/font_family.dart';
+import 'package:soya_app/util/string_utils.dart';
 import 'package:soya_app/features/bottom_navigation_bar/controller/bottom_navbar_controller.dart';
 import 'package:font_awesome_flutter/font_awesome_flutter.dart';
 import 'package:pdf/pdf.dart';
@@ -306,7 +307,7 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                 _buildIconDetailRow(
                   Icons.person,
                   "Name",
-                  bill.farmer?.name ?? 'N/A',
+                  titleCaseOr(bill.farmer?.name, 'N/A'),
                 ),
                 Divider(height: 20, color: appColor),
                 Row(
@@ -817,6 +818,10 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
           suffix: "KG",
         ),
         ...bagRows,
+        _buildInfoRow(
+          "Total Bag Quantity",
+          "${bill.gonis != null && bill.gonis!.isNotEmpty ? bill.gonis!.fold<int>(0, (sum, g) => sum + (g.bagCount ?? 0)) : (bill.bagCount ?? 0)} bags",
+        ),
         _buildInfoRow(
           "Total Bag Weight",
           "${((calc?.bagWeight ?? (bill.goniWeight ?? 0)) * 100).toStringAsFixed(2)} KG",
@@ -2463,7 +2468,8 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
   ) {
     final outstandingAdvance = controller.farmerAdvanceBalance;
     final farmerName =
-        bill.farmer?.name ?? controller.selectedFarmer?.name ?? 'N/A';
+        titleCaseOr(bill.farmer?.name ?? controller.selectedFarmer?.name,
+            'N/A');
 
     return Container(
       width: double.infinity,
@@ -2719,9 +2725,10 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                                   SizedBox(width: 8.w),
                                   Expanded(
                                     child: Text(
-                                      bill.farmer?.name ??
-                                          controller.selectedFarmer?.name ??
-                                          'Farmer',
+                                      titleCaseOr(
+                                          bill.farmer?.name ??
+                                              controller.selectedFarmer?.name,
+                                          'Farmer'),
                                       style: TextStyle(
                                         fontSize: 14.sp,
                                         fontWeight: FontWeight.bold,

@@ -86,6 +86,7 @@ class LocationService {
           if (place.street != null && place.street!.isNotEmpty) place.street,
           if (place.subLocality != null && place.subLocality!.isNotEmpty) place.subLocality,
           if (place.locality != null && place.locality!.isNotEmpty) place.locality,
+          
           if (place.administrativeArea != null && place.administrativeArea!.isNotEmpty) place.administrativeArea,
           if (place.postalCode != null && place.postalCode!.isNotEmpty) place.postalCode,
         ].join(", ");

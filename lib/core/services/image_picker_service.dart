@@ -2,6 +2,7 @@ import 'dart:io';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:soya_app/core/widgets/tost_message.dart';
@@ -15,7 +16,10 @@ class ImagePickerService {
 
   /// Picks an image or document after showing a source selection dialog.
   /// Handles keyboard unfocusing and permission checks.
-  static Future<File?> pickFile(BuildContext context) async {
+  /// When [enableCrop] is true, the picked image opens in a cropper that
+  /// supports rotating and cropping before being returned.
+  static Future<File?> pickFile(BuildContext context,
+      {bool enableCrop = false}) async {
     // 1. Unfocus keyboard immediately to prevent UI lag
     FocusScope.of(context).unfocus();
 
@@ -55,7 +59,15 @@ class ImagePickerService {
         imageQuality: 80, // Optimize image size
       );
       if (image != null) {
-        return File(image.path);
+        final File pickedFile = File(image.path);
+        if (enableCrop) {
+          final croppedFile = await _cropImage(context, pickedFile);
+          if (croppedFile != null) {
+            return File(croppedFile.path);
+          }
+          // User cancelled cropping, fall back to the original image
+        }
+        return pickedFile;
       }
     } catch (e) {
       debugPrint('Error picking file: $e');
@@ -65,6 +77,53 @@ class ImagePickerService {
       }
     }
     return null;
+  }
+
+  /// Opens the cropper UI allowing the user to rotate and crop the image.
+  /// Returns the cropped file or null if the user cancels.
+  static Future<CroppedFile?> _cropImage(
+      BuildContext context, File sourceFile) async {
+    try {
+      return await ImageCropper().cropImage(
+        sourcePath: sourceFile.path,
+        compressQuality: 80,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Rotate & Crop',
+            toolbarColor: appColor,
+            toolbarWidgetColor: whiteColor,
+            backgroundColor: whiteColor,
+            activeControlsWidgetColor: appColor,
+            dimmedLayerColor: Colors.black.withOpacity(0.4),
+            cropFrameColor: appColor,
+            cropGridColor: Colors.grey,
+            cropFrameStrokeWidth: 2,
+            cropGridRowCount: 3,
+            cropGridColumnCount: 3,
+            cropGridStrokeWidth: 1,
+            showCropGrid: true,
+            lockAspectRatio: false,
+            hideBottomControls: false,
+            initAspectRatio: CropAspectRatioPreset.original,
+            cropStyle: CropStyle.rectangle,
+          ),
+          IOSUiSettings(
+            title: 'Rotate & Crop',
+            aspectRatioLockEnabled: false,
+            rotateClockwiseButtonHidden: false,
+            resetButtonHidden: false,
+            aspectRatioPickerButtonHidden: true,
+          ),
+        ],
+      );
+    } catch (e) {
+      debugPrint('Error cropping image: $e');
+      if (context.mounted) {
+        ToastMessage.show(context,
+            message: 'Error cropping image: $e', isError: true);
+      }
+      return null;
+    }
   }
 
   /// Picks multiple images or documents after showing a source selection dialog.
@@ -136,46 +195,24 @@ class ImagePickerService {
 
   static Future<bool> _handlePermissions(
       BuildContext context, ImageSource source) async {
-    if (source == ImageSource.camera) {
-      var status = await Permission.camera.status;
+    // Only camera requires a runtime permission. Gallery picking uses the
+    // system photo picker (Android 13+) or ACTION_GET_CONTENT / ACTION_PICK
+    // on older versions, neither of which requires a storage permission.
+    if (source != ImageSource.camera) return true;
+
+    var status = await Permission.camera.status;
+    if (!status.isGranted) {
+      status = await Permission.camera.request();
       if (!status.isGranted) {
-        status = await Permission.camera.request();
-        if (!status.isGranted) {
-          if (context.mounted) {
-            ToastMessage.show(context,
-                message: 'Camera permission is required to take photos',
-                isError: true);
-          }
-          if (status.isPermanentlyDenied) {
-            openAppSettings();
-          }
-          return false;
+        if (context.mounted) {
+          ToastMessage.show(context,
+              message: 'Camera permission is required to take photos',
+              isError: true);
         }
-      }
-    } else {
-      // Gallery permission - For Android 13+ handled by image_picker mostly,
-      // but explicit check is safer for older versions or specific needs.
-      if (Platform.isAndroid) {
-        var status = await Permission.photos.status;
-        if (status.isDenied || status.isLimited) {
-          status = await Permission.photos.request();
+        if (status.isPermanentlyDenied) {
+          openAppSettings();
         }
-
-        if (status.isDenied) {
-          status = await Permission.storage.status;
-          if (status.isDenied) {
-            status = await Permission.storage.request();
-          }
-        }
-
-        if (status.isDenied) {
-          if (context.mounted) {
-            ToastMessage.show(context,
-                message: 'Storage permission is required to access gallery',
-                isError: true);
-          }
-          return false;
-        }
+        return false;
       }
     }
     return true;

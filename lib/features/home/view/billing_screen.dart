@@ -10,6 +10,7 @@ import 'package:soya_app/features/login_and_signup/controller/login_controller.d
 import 'package:soya_app/features/home/model/farmer_model.dart';
 import 'package:soya_app/util/colors.dart';
 import 'package:soya_app/util/font_family.dart';
+import 'package:soya_app/util/string_utils.dart';
 import 'package:soya_app/features/bottom_navigation_bar/controller/bottom_navbar_controller.dart';
 import 'package:soya_app/features/home/model/save_bill_request.dart';
 import 'package:soya_app/features/home/model/deduction_master_model.dart';
@@ -80,7 +81,7 @@ class _BillingScreenState extends State<BillingScreen> {
       if (isEditing && _billingController.selectedBillDetails != null) {
         _isEditingDraft = true;
         final bill = _billingController.selectedBillDetails!;
-        _farmerNameController.text = bill.farmer?.name ?? '';
+        _farmerNameController.text = titleCase(bill.farmer?.name);
         _netWeightController.text =
             ((bill.primaryQuantity ?? bill.items?.firstOrNull?.quantity ?? 0) * 100)
                 .toString();
@@ -967,6 +968,35 @@ class _BillingScreenState extends State<BillingScreen> {
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceBetween,
                                 children: [
+                                  Text("Total Bag Quantity:",
+                                      style: TextStyle(
+                                          fontSize: 14.sp,
+                                          fontWeight: FontWeight.w500,
+                                          fontFamily: FontFamily.jost,
+                                          color: blackColor)),
+                                  Text(
+                                      "${controller.selectedBags.fold(0, (sum, b) => sum + b.bagCount)} Bags",
+                                      style: TextStyle(
+                                          fontSize: 16.sp,
+                                          fontWeight: FontWeight.bold,
+                                          fontFamily: FontFamily.jost,
+                                          color: primeryColor)),
+                                ],
+                              ),
+                            ),
+                            SizedBox(height: 8.h),
+                            Container(
+                              padding: EdgeInsets.all(12.w),
+                              decoration: BoxDecoration(
+                                color: primeryColor.withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(8.r),
+                                border: Border.all(
+                                    color: primeryColor.withOpacity(0.3)),
+                              ),
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceBetween,
+                                children: [
                                   Text("Total Estimated Deduction:",
                                       style: TextStyle(
                                           fontSize: 14.sp,
@@ -1314,7 +1344,7 @@ class _BillingScreenState extends State<BillingScreen> {
           final farmer = controller.searchedFarmers[index];
           return ListTile(
             dense: true,
-            title: Text(farmer.name ?? 'Unknown',
+            title: Text(titleCaseOr(farmer.name, 'Unknown'),
                 style: TextStyle(
                     fontSize: 14.sp,
                     fontFamily: FontFamily.jost,
@@ -1326,7 +1356,7 @@ class _BillingScreenState extends State<BillingScreen> {
                     color: greyColor)),
             onTap: () {
               controller.selectFarmer(farmer);
-              _farmerNameController.text = farmer.name ?? '';
+              _farmerNameController.text = titleCase(farmer.name);
               _farmerFocusNode.unfocus();
             },
           );
@@ -1366,7 +1396,7 @@ class _BillingScreenState extends State<BillingScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      farmer.name ?? 'Unknown',
+                      titleCaseOr(farmer.name, 'Unknown'),
                       style: TextStyle(
                         fontSize: 16.sp,
                         fontWeight: FontWeight.bold,
@@ -1394,7 +1424,7 @@ class _BillingScreenState extends State<BillingScreen> {
                         context,
                         AppRoutes.billingReport,
                         arguments: {
-                          'search': farmer.name,
+                          'search': titleCase(farmer.name),
                           'ignoreVendorId': true,
                         },
                       );
@@ -1574,12 +1604,6 @@ class _BillingScreenState extends State<BillingScreen> {
           await controller.createDraftBill(context: context, request: request);
       if (success) setState(() => _currentStep = 1);
     } else if (_currentStep == 1) {
-      if (controller.selectedBags.isEmpty) {
-        ToastMessage.show(context,
-            message: 'Please add at least one bag', isError: true);
-        return;
-      }
-
       final success = await controller.applyDraftGoniDeduction(
         context: context,
       );

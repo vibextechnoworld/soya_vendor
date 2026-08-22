@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:soya_app/features/home/controller/stock_controller.dart';
 import 'package:soya_app/util/colors.dart';
 import 'package:soya_app/util/font_family.dart';
+import 'package:soya_app/util/string_utils.dart';
 
 class BagSummaryContentView extends StatefulWidget {
   final StockController controller;
@@ -511,7 +512,7 @@ class _BagSummaryContentViewState extends State<BagSummaryContentView>
             itemBuilder: (context, index) {
               final item = returned[index];
               return ListTile(
-                title: Text(item.farmer?.name ?? 'Unknown Farmer',
+                title: Text(titleCaseOr(item.farmer?.name, 'Unknown Farmer'),
                     style: TextStyle(
                         fontSize: 14.sp,
                         fontWeight: FontWeight.w600,

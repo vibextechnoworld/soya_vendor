@@ -99,7 +99,7 @@ class PdfInvoiceService {
     List<BillDeduction>? deductions,
     String? customDisclaimer,
   }) async {
-    final ttf = await PdfGoogleFonts.notoSansDevanagariRegular();
+    final ttf = await PdfGoogleFonts.notoSansDevanagariBold();
     final ttfBold = await PdfGoogleFonts.notoSansDevanagariBold();
     String? vName;
     String? vMobile;
@@ -126,11 +126,11 @@ class PdfInvoiceService {
 
     final String declText = (disclaimerText != null &&
             disclaimerText.trim().isNotEmpty)
-        ? 'I, ${data.farmerName}, ${disclaimerText.trim()}'
-        : 'I, ${data.farmerName}, confirm that the supplied crop belongs to me and the payment details mentioned above are accepted by me.';
+        ? 'I, ${_titleCase(data.farmerName)}, ${disclaimerText.trim()}'
+        : 'I, ${_titleCase(data.farmerName)}, confirm that the supplied crop belongs to me and the payment details mentioned above are accepted by me.';
     final declImage = await _renderTextToImage(declText);
     final sloganImage =
-        await _renderTextToImage('समृद्ध शेतकरी चळवळ', fontSize: 9);
+        await _renderTextToImage('समृद्ध शेतकरी चळवळ', fontSize: 6.5);
     final logoImage =
         (await rootBundle.load('assets/playstore_icon.png')).buffer.asUint8List();
 
@@ -210,7 +210,7 @@ class PdfInvoiceService {
     List<BillDeduction>? deductions,
     String? customDisclaimer,
   }) async {
-    final ttf = await PdfGoogleFonts.notoSansDevanagariRegular();
+    final ttf = await PdfGoogleFonts.notoSansDevanagariBold();
     final ttfBold = await PdfGoogleFonts.notoSansDevanagariBold();
     String? vName;
     String? vMobile;
@@ -236,7 +236,7 @@ class PdfInvoiceService {
     final disclaimerText = customDisclaimer ?? await _fetchDisclaimer();
     final String thermalDeclText = (disclaimerText != null &&
             disclaimerText.trim().isNotEmpty)
-        ? 'I, ${data.farmerName}, ${disclaimerText.trim()}'
+        ? 'I, ${_titleCase(data.farmerName)}, ${disclaimerText.trim()}'
         : 'I confirm that the supplied crop belongs to me and payment details mentioned above are accepted by me.';
     final thermalDeclImage = await _renderTextToImage(thermalDeclText,
         fontSize: 6, maxWidth: 170);
@@ -281,13 +281,15 @@ class PdfInvoiceService {
                 _thermalAmountBlock(ttf, ttfBold, data),
                 _thermalLine(),
                 _thermalCenter(ttfBold, 'WEIGHT DETAILS', size: 7),
-                _thermalRow(ttf, ttfBold, 'Gross Weight', '${data.grossKg} QTL',
+                _thermalRow(ttf, ttfBold, 'Gross Weight in KG',
+                    _kgFromQtl(data.grossKg),
                     labelWidth: 75),
                 _thermalRow(
-                    ttf, ttfBold, 'Bag Deduction', '${(data.bagDeductionKg.isNotEmpty ? (double.tryParse(data.bagDeductionKg) ?? 0) * 100 : 0).toStringAsFixed(2)} KG',
+                    ttf, ttfBold, 'Bag Deduction in KG', '${(data.bagDeductionKg.isNotEmpty ? (double.tryParse(data.bagDeductionKg) ?? 0) * 100 : 0).toStringAsFixed(2)}',
                     labelWidth: 75),
                 _thermalLine(),
-                _thermalRow(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL',
+                _thermalRow(ttf, ttfBold, 'Net Weight in KG',
+                    _kgFromQtl(data.netKg),
                     boldValue: true, labelWidth: 75),
                 _thermalLine(),
                 _thermalCenter(ttfBold, 'BAG DETAILS'),
@@ -312,13 +314,31 @@ class PdfInvoiceService {
                 _thermalLine(),
                 _thermalCenter(ttfBold, 'DECLARATION'),
                 pw.Image(pw.MemoryImage(thermalDeclImage)),
-                pw.SizedBox(height: 10),
+                pw.SizedBox(height: 3),
+                pw.Text(
+                  'Amount received in words: Rs. ${_numberToWords(data.payableRounded)} ONLY',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: ttfBold, fontSize: 5.6),
+                ),
+                pw.SizedBox(height: 8),
                 pw.Row(
                   mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                   children: [
                     _thermalSign(ttf, 'Farmer Sign'),
                     _thermalSign(ttf, 'Lab Chemist Sign'),
                   ],
+                ),
+                pw.SizedBox(height: 3),
+                pw.Text(
+                  'This is a system generated document and does not require signature.',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: ttf, fontSize: 5.3),
+                ),
+                pw.SizedBox(height: 1),
+                pw.Text(
+                  'Subject to Dharashiv Jurisdiction.',
+                  textAlign: pw.TextAlign.center,
+                  style: pw.TextStyle(font: ttfBold, fontSize: 5.6),
                 ),
                 _thermalLine(),
                 _thermalCenter(ttfBold, 'Generated / Billing Time', size: 6.2),
@@ -353,9 +373,6 @@ class PdfInvoiceService {
                     width: 58,
                     height: 42,
                     alignment: pw.Alignment.center,
-                    decoration: pw.BoxDecoration(
-                      border: pw.Border.all(color: PdfColors.black, width: .8),
-                    ),
                     child: logoImage != null
                         ? pw.Image(
                             pw.MemoryImage(logoImage),
@@ -365,12 +382,6 @@ class PdfInvoiceService {
                             _companyShortName,
                             style: pw.TextStyle(font: ttfBold, fontSize: 18),
                           ),
-                  ),
-                  pw.SizedBox(height: 2),
-                  pw.Text(
-                    'TULJA BHAVANI\nSOYA PVT. LTD.',
-                    textAlign: pw.TextAlign.center,
-                    style: pw.TextStyle(font: ttfBold, fontSize: 6.4),
                   ),
                 ],
               ),
@@ -499,24 +510,26 @@ class PdfInvoiceService {
         children: [
           _a4SectionTitle(ttfBold, 'WEIGHT SUMMARY'),
           pw.SizedBox(height: 8),
-          _a4AmountRow(ttf, ttfBold, 'Gross Weight', '${data.grossKg} QTL'),
-          _a4AmountRow(ttf, ttfBold, 'Bag Weight (Deduction)',
-              '${(data.bagDeductionKg.isNotEmpty ? (double.tryParse(data.bagDeductionKg) ?? 0) * 100 : 0).toStringAsFixed(2)} KG'),
+          _a4AmountRow(ttf, ttfBold, 'Gross Weight in KG ',
+              _kgFromQtl(data.grossKg)),
+          _a4AmountRow(ttf, ttfBold, 'Bag Weight (Deduction) in KG',
+              '${(data.bagDeductionKg.isNotEmpty ? (double.tryParse(data.bagDeductionKg) ?? 0) * 100 : 0).toStringAsFixed(2)}'),
           // _a4Dash(),
-          _a4AmountRow(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL',
+          _a4AmountRow(ttf, ttfBold, 'Net Weight in KG',
+              _kgFromQtl(data.netKg),
               bold: true),
           // _a4Dash(),
           _a4AmountRow(
-              ttf, ttfBold, 'Final Purchase Rate', 'Rs. ${data.rate} / Qtl'),
+              ttf, ttfBold, 'Final Purchase Rate in Rs', '${data.rate}'),
           // _a4Dash(),
           if (data.advanceAmount.isNotEmpty)
             ...[
               _a4AmountRow(
-                  ttf, ttfBold, 'Advance Deduction', '- Rs. ${data.advanceAmount}'),
+                  ttf, ttfBold, 'Advance Deduction in Rs', '${data.advanceAmount}'),
               // _a4Dash(),
             ],
           _a4AmountRow(
-              ttf, ttfBold, 'PAYABLE AMOUNT', 'Rs. ${data.payableAmount}',
+              ttf, ttfBold, 'PAYABLE AMOUNT in Rs', '${data.payableAmount}',
               bold: true, fontSize: 9.3),
         ],
       ),
@@ -584,8 +597,8 @@ class PdfInvoiceService {
               pw.Expanded(
                 child: pw.Column(
                   children: [
-                    _a4InlineField(ttf, ttfBold, 'Bank Name', data.bankName,
-                        labelWidth: 88),
+                    _a4InlineField(ttf, ttfBold, 'Bank Name',
+                        _titleCase(data.bankName), labelWidth: 88),
                     _a4InlineField(
                         ttf, ttfBold, 'Account Number', data.accountNo,
                         labelWidth: 88),
@@ -597,7 +610,7 @@ class PdfInvoiceService {
                 child: pw.Column(
                   children: [
                     _a4InlineField(
-                        ttf, ttfBold, 'Account Holder', data.holderName,
+                        ttf, ttfBold, 'Account Holder', _titleCase(data.holderName),
                         labelWidth: 100),
                     _a4InlineField(
                         ttf, ttfBold, 'IFSC Code & Branch', data.ifsc,
@@ -628,13 +641,14 @@ class PdfInvoiceService {
                     labelWidth: 96),
                 _a4InlineField(ttf, ttfBold, 'Vehicle No.', data.vehicleNo,
                     labelWidth: 96),
-                _a4InlineField(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL',
+                _a4InlineField(ttf, ttfBold, 'Net Weight in KG',
+                    _kgFromQtl(data.netKg),
                     labelWidth: 96),
                 _a4InlineField(
-                    ttf, ttfBold, 'Purchase Rate', 'Rs. ${data.rate}',
+                    ttf, ttfBold, 'Purchase Rate in Rs', '${data.rate}',
                     labelWidth: 96),
                 _a4InlineField(
-                    ttf, ttfBold, 'Total Amount', 'Rs. ${data.payableAmount}',
+                    ttf, ttfBold, 'Total Amount in Rs', '${data.payableAmount}',
                     labelWidth: 96),
               ],
             ),
@@ -1158,11 +1172,12 @@ class PdfInvoiceService {
       ? ''
       : _titleCase(data.farmerName),),
                 _a4ReturnField(ttf, ttfBold, 'Vehicle Number', data.vehicleNo),
-                _a4ReturnField(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL'),
+                _a4ReturnField(ttf, ttfBold, 'Net Weight in KG',
+                    _kgFromQtl(data.netKg)),
                 _a4ReturnField(
-                    ttf, ttfBold, 'Purchase Rate', 'Rs. ${data.rate}'),
+                    ttf, ttfBold, 'Purchase Rate in Rs', '${data.rate}'),
                 _a4ReturnField(
-                    ttf, ttfBold, 'Total Amount', 'Rs. ${data.payableAmount}'),
+                    ttf, ttfBold, 'Total Amount in Rs', '${data.payableAmount}'),
               ],
             ),
           ),
@@ -1255,11 +1270,27 @@ class PdfInvoiceService {
             ],
           ),
           pw.SizedBox(height: 4),
-          pw.Text(
-            'This is a system generated document and does not require signature.',
-            textAlign: pw.TextAlign.center,
-            style: pw.TextStyle(font: ttfBold, fontSize: 6.8),
-          ),
+         pw.RichText(
+  textAlign: pw.TextAlign.center,
+  text: pw.TextSpan(
+    children: [
+      pw.TextSpan(
+        text: 'This is a system generated document and does not require signature.\n',
+        style: pw.TextStyle(
+          font: ttf,
+          fontSize: 6.8,
+        ),
+      ),
+      pw.TextSpan(
+        text: 'Subject to Dharashiv Jurisdiction.',
+        style: pw.TextStyle(
+          font: ttfBold,
+          fontSize: 6.8,
+        ),
+      ),
+    ],
+  ),
+),
         ],
       ),
     );
@@ -1559,9 +1590,10 @@ class PdfInvoiceService {
       ? ''
       : _titleCase(data.farmerName),),
           _thermalRow(ttf, ttfBold, 'Vehicle No', data.vehicleNo),
-          _thermalRow(ttf, ttfBold, 'Net Weight', '${data.netKg} QTL'),
-          _thermalRow(ttf, ttfBold, 'Rate', 'Rs ${data.rate}'),
-          _thermalRow(ttf, ttfBold, 'Total Amount', 'Rs ${data.payableAmount}'),
+          _thermalRow(ttf, ttfBold, 'Net Weight in KG',
+              _kgFromQtl(data.netKg)),
+          _thermalRow(ttf, ttfBold, 'Rate in Rs', '${data.rate}'),
+          _thermalRow(ttf, ttfBold, 'Total Amount in Rs', '${data.payableAmount}'),
           _thermalLine(),
           _thermalRow(ttf, ttfBold, 'KP No', data.kpNo),
           _thermalRow(ttf, ttfBold, 'Date', data.date),
@@ -2101,6 +2133,34 @@ class _BillPrintData {
     final formatter = NumberFormat('#,##,##0.00', 'en_IN');
     return formatter.format(value);
   }
+}
+
+String _kgFromQtl(String? qtl) {
+  if (qtl == null || qtl.trim().isEmpty) return '0';
+  var s = qtl.trim();
+  final neg = s.startsWith('-');
+  if (neg) s = s.substring(1);
+  var intPart = s;
+  var frac = '';
+  if (s.contains('.')) {
+    final parts = s.split('.');
+    intPart = parts[0];
+    frac = parts[1];
+  }
+  intPart = intPart.isEmpty ? '0' : intPart;
+  if (frac.length <= 2) {
+    frac = frac.padRight(2, '0');
+    intPart = intPart + frac;
+    var cleaned = intPart.replaceFirst(RegExp(r'^0+'), '');
+    if (cleaned.isEmpty) cleaned = '0';
+    return neg ? '-$cleaned' : cleaned;
+  }
+  intPart = intPart + frac.substring(0, 2);
+  frac = frac.substring(2);
+  var cleaned = intPart.replaceFirst(RegExp(r'^0+'), '');
+  if (cleaned.isEmpty) cleaned = '0';
+  final result = '$cleaned.$frac';
+  return neg ? '-$result' : result;
 }
 
 String _titleCase(String? value) {
