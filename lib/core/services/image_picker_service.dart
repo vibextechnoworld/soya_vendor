@@ -1,7 +1,9 @@
 import 'dart:io';
+import 'dart:typed_data';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:image/image.dart' as img;
 import 'package:image_cropper/image_cropper.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:permission_handler/permission_handler.dart';
@@ -13,6 +15,60 @@ enum FileSource { camera, gallery, document }
 
 class ImagePickerService {
   static final ImagePicker _picker = ImagePicker();
+
+  /// Compresses an image file to reduce upload size over slow networks.
+  /// - Non-image files (PDFs, etc.) are returned unchanged.
+  /// - Images are decoded, resized to a max dimension, and re-encoded as JPEG.
+  /// - Returns the original file if compression fails (fail-safe).
+  static Future<File> compressForUpload(File file,
+      {int maxDimension = 1400, int quality = 70}) async {
+    try {
+      if (!file.existsSync()) return file;
+
+      // Only compress raster images; leave PDFs/documents untouched.
+      final lower = file.path.toLowerCase();
+      final isImage = lower.endsWith('.jpg') ||
+          lower.endsWith('.jpeg') ||
+          lower.endsWith('.png') ||
+          lower.endsWith('.bmp') ||
+          lower.endsWith('.webp');
+      if (!isImage) return file;
+
+      // Try to decode with the image package (pure Dart, no native deps).
+      Uint8List? bytes = await file.readAsBytes();
+      if (bytes.isEmpty) return file;
+
+      final decoder = img.decodeImage(bytes);
+      if (decoder == null) return file;
+
+      var image = decoder;
+      // Downscale if wider/taller than the target dimension.
+      final scale =
+          (image.width > image.height ? image.width : image.height) /
+              maxDimension;
+      if (scale > 1) {
+        image = img.copyResize(image,
+            width: (image.width / scale).round(),
+            height: (image.height / scale).round());
+      }
+
+      // Re-encode to JPEG. Use a temp file in the same directory as the source.
+      final dir = file.parent;
+      final outFile =
+          File('${dir.path}/cmp_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      final jpg = img.encodeJpg(image, quality: quality);
+
+      // Only replace if the compressed version is actually smaller.
+      if (jpg.length < bytes.length) {
+        await outFile.writeAsBytes(jpg, flush: true);
+        return outFile;
+      }
+      return file;
+    } catch (e) {
+      debugPrint('Image compression failed, using original: $e');
+      return file;
+    }
+  }
 
   /// Picks an image or document after showing a source selection dialog.
   /// Handles keyboard unfocusing and permission checks.
@@ -40,7 +96,7 @@ class ImagePickerService {
           withData: false, // Don't load file data into memory
         );
         if (result != null && result.files.single.path != null) {
-          return File(result.files.single.path!);
+          return await compressForUpload(File(result.files.single.path!));
         }
         return null;
       }
@@ -61,13 +117,13 @@ class ImagePickerService {
       if (image != null) {
         final File pickedFile = File(image.path);
         if (enableCrop) {
-          final croppedFile = await _cropImage(context, pickedFile);
-          if (croppedFile != null) {
-            return File(croppedFile.path);
+          final rotatedFile = await _rotateAndZoom(context, pickedFile);
+          if (rotatedFile != null) {
+            return await compressForUpload(rotatedFile);
           }
-          // User cancelled cropping, fall back to the original image
+          // User cancelled, fall back to the original image
         }
-        return pickedFile;
+        return await compressForUpload(pickedFile);
       }
     } catch (e) {
       debugPrint('Error picking file: $e');
@@ -79,48 +135,24 @@ class ImagePickerService {
     return null;
   }
 
-  /// Opens the cropper UI allowing the user to rotate and crop the image.
-  /// Returns the cropped file or null if the user cancels.
-  static Future<CroppedFile?> _cropImage(
+  /// Opens a full-screen viewer that lets the user ZOOM (pinch/pan) and
+  /// ROTATE the image, with NO cropping. Rotation is applied to the actual
+  /// pixels so the saved file is truly rotated.
+  /// Returns the rotated file, or null if the user cancels (keep original).
+  static Future<File?> _rotateAndZoom(
       BuildContext context, File sourceFile) async {
     try {
-      return await ImageCropper().cropImage(
-        sourcePath: sourceFile.path,
-        compressQuality: 80,
-        uiSettings: [
-          AndroidUiSettings(
-            toolbarTitle: 'Rotate & Crop',
-            toolbarColor: appColor,
-            toolbarWidgetColor: whiteColor,
-            backgroundColor: whiteColor,
-            activeControlsWidgetColor: appColor,
-            dimmedLayerColor: Colors.black.withOpacity(0.4),
-            cropFrameColor: appColor,
-            cropGridColor: Colors.grey,
-            cropFrameStrokeWidth: 2,
-            cropGridRowCount: 3,
-            cropGridColumnCount: 3,
-            cropGridStrokeWidth: 1,
-            showCropGrid: true,
-            lockAspectRatio: false,
-            hideBottomControls: false,
-            initAspectRatio: CropAspectRatioPreset.original,
-            cropStyle: CropStyle.rectangle,
-          ),
-          IOSUiSettings(
-            title: 'Rotate & Crop',
-            aspectRatioLockEnabled: false,
-            rotateClockwiseButtonHidden: false,
-            resetButtonHidden: false,
-            aspectRatioPickerButtonHidden: true,
-          ),
-        ],
+      final File? result = await showDialog<File?>(
+        context: context,
+        barrierColor: Colors.black,
+        builder: (_) => _RotateZoomViewer(sourceFile: sourceFile),
       );
+      return result;
     } catch (e) {
-      debugPrint('Error cropping image: $e');
+      debugPrint('Error in rotate/zoom viewer: $e');
       if (context.mounted) {
         ToastMessage.show(context,
-            message: 'Error cropping image: $e', isError: true);
+            message: 'Error: $e', isError: true);
       }
       return null;
     }
@@ -149,10 +181,15 @@ class ImagePickerService {
           withData: false, // Don't load file data into memory
         );
         if (result != null && result.files.isNotEmpty) {
-          return result.files
+          final files = result.files
               .where((f) => f.path != null)
               .map((f) => File(f.path!))
               .toList();
+          final compressed = <File>[];
+          for (final f in files) {
+            compressed.add(await compressForUpload(f));
+          }
+          return compressed;
         }
         return null;
       }
@@ -166,7 +203,7 @@ class ImagePickerService {
           imageQuality: 80,
         );
         if (image != null) {
-          return [File(image.path)];
+          return [await compressForUpload(File(image.path))];
         }
         return null;
       }
@@ -179,7 +216,11 @@ class ImagePickerService {
           imageQuality: 80,
         );
         if (images.isNotEmpty) {
-          return images.map((img) => File(img.path)).toList();
+          final compressed = <File>[];
+          for (final img in images) {
+            compressed.add(await compressForUpload(File(img.path)));
+          }
+          return compressed;
         }
         return null;
       }
@@ -312,5 +353,223 @@ class ImagePickerService {
         ],
       ),
     );
+  }
+}
+
+/// Full-screen rotate + zoom viewer. NO crop frame.
+/// Pinch/pan to zoom, rotate button turns the image 90deg clockwise.
+/// Done applies the real pixel rotation and returns the rotated file.
+/// Cancel returns null (keep original).
+class _RotateZoomViewer extends StatefulWidget {
+  const _RotateZoomViewer({required this.sourceFile});
+
+  final File sourceFile;
+
+  @override
+  State<_RotateZoomViewer> createState() => _RotateZoomViewerState();
+}
+
+class _RotateZoomViewerState extends State<_RotateZoomViewer> {
+  int _rotations = 0;
+  bool _saving = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.black,
+      insetPadding: EdgeInsets.zero,
+      child: Stack(
+        children: [
+          // Rotatable + zoomable image
+          Positioned.fill(
+            child: RotatedBox(
+              quarterTurns: _rotations,
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 5,
+                panEnabled: true,
+                child: Image.file(
+                  widget.sourceFile,
+                  fit: BoxFit.contain,
+                ),
+              ),
+            ),
+          ),
+          // Close button (cancel, keep original)
+          Positioned(
+            top: 16,
+            left: 16,
+            child: GestureDetector(
+              onTap: () => Navigator.pop(context),
+              child: Container(
+                padding: EdgeInsets.all(8.r),
+                decoration: BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(Icons.close, color: whiteColor, size: 22.sp),
+              ),
+            ),
+          ),
+          // Top-right column: rotate + crop buttons
+          Positioned(
+            top: 16,
+            right: 16,
+            child: Column(
+              children: [
+                GestureDetector(
+                  onTap: () =>
+                      setState(() => _rotations = (_rotations + 1) % 4),
+                  child: Container(
+                    padding: EdgeInsets.all(8.r),
+                    decoration: BoxDecoration(
+                      color: appColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child:
+                        Icon(Icons.rotate_right, color: whiteColor, size: 22.sp),
+                  ),
+                ),
+                SizedBox(height: 12.h),
+                GestureDetector(
+                  onTap: _saving ? null : _openCropper,
+                  child: Container(
+                    padding: EdgeInsets.all(8.r),
+                    decoration: BoxDecoration(
+                      color: whiteColor,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.crop, color: appColor, size: 22.sp),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Bottom bar with Done button
+          Positioned(
+            bottom: 16,
+            left: 0,
+            right: 0,
+            child: Center(
+              child: _saving
+                  ? const CircularProgressIndicator(color: Colors.white)
+                  : ElevatedButton(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: appColor,
+                        padding: EdgeInsets.symmetric(
+                            horizontal: 32.w, vertical: 12.h),
+                      ),
+                      onPressed: _rotations == 0
+                          ? () => Navigator.pop(context, widget.sourceFile)
+                          : _applyRotation,
+                      child: Text(
+                        'DONE',
+                        style: TextStyle(
+                          color: whiteColor,
+                          fontSize: 16.sp,
+                          fontWeight: FontWeight.w700,
+                          fontFamily: FontFamily.jost,
+                        ),
+                      ),
+                    ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _applyRotation() async {
+    setState(() => _saving = true);
+    try {
+      final bytes = await widget.sourceFile.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) {
+        if (mounted) Navigator.pop(context, widget.sourceFile);
+        return;
+      }
+      var rotated = decoded;
+      for (var i = 0; i < _rotations; i++) {
+        rotated = img.copyRotate(rotated, angle: 90);
+      }
+      final dir = widget.sourceFile.parent;
+      final outFile = File(
+          '${dir.path}/rot_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await outFile.writeAsBytes(img.encodeJpg(rotated, quality: 90),
+          flush: true);
+      if (mounted) Navigator.pop(context, outFile);
+    } catch (e) {
+      debugPrint('Rotation failed: $e');
+      if (mounted) Navigator.pop(context, widget.sourceFile);
+    }
+  }
+
+  /// Applies the current rotation (if any) to a temp file, then opens the
+  /// native cropper so the user can select a crop area. Returns the cropped
+  /// file as the final result.
+  Future<void> _openCropper() async {
+    setState(() => _saving = true);
+    try {
+      // 1. Ensure the temp file is in the current rotation orientation.
+      File orientedFile = widget.sourceFile;
+      if (_rotations != 0) {
+        final bytes = await widget.sourceFile.readAsBytes();
+        final decoded = img.decodeImage(bytes);
+        if (decoded != null) {
+          img.Image rotated = decoded;
+          for (var i = 0; i < _rotations; i++) {
+            rotated = img.copyRotate(rotated, angle: 90);
+          }
+          final dir = widget.sourceFile.parent;
+          orientedFile = File(
+              '${dir.path}/rot_${DateTime.now().millisecondsSinceEpoch}.jpg');
+          await orientedFile.writeAsBytes(
+              img.encodeJpg(rotated, quality: 90),
+              flush: true);
+        }
+      }
+
+      // 2. Open the native cropper with aspect ratio locked to original.
+      final CroppedFile? cropped = await ImageCropper().cropImage(
+        sourcePath: orientedFile.path,
+        compressQuality: 90,
+        uiSettings: [
+          AndroidUiSettings(
+            toolbarTitle: 'Crop Image',
+            toolbarColor: appColor,
+            toolbarWidgetColor: whiteColor,
+            backgroundColor: whiteColor,
+            activeControlsWidgetColor: appColor,
+            dimmedLayerColor: Colors.black.withOpacity(0.4),
+            cropFrameColor: appColor,
+            cropGridColor: Colors.grey,
+            cropFrameStrokeWidth: 2,
+            showCropGrid: true,
+            lockAspectRatio: true,
+            hideBottomControls: false,
+            initAspectRatio: CropAspectRatioPreset.original,
+            cropStyle: CropStyle.rectangle,
+          ),
+          IOSUiSettings(
+            title: 'Crop Image',
+            aspectRatioLockEnabled: true,
+            aspectRatioPickerButtonHidden: true,
+          ),
+        ],
+      );
+
+      if (!mounted) return;
+      if (cropped != null) {
+        Navigator.pop(context, File(cropped.path));
+      } else {
+        // User cancelled the cropper; go back to the rotate/zoom viewer.
+        setState(() => _saving = false);
+      }
+    } catch (e) {
+      debugPrint('Crop failed: $e');
+      if (mounted) {
+        setState(() => _saving = false);
+      }
+    }
   }
 }

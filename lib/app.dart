@@ -18,6 +18,11 @@ class SoyaApp extends StatelessWidget {
       navigatorKey: NavigationService.navigatorKey,
       title: 'SoyaApp',
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        return NavigatorPopHandler(
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
       locale: const Locale('en', 'IN'),
       supportedLocales: const [
         Locale('en', 'IN'),

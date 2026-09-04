@@ -498,7 +498,9 @@ class FarmerKycController with ChangeNotifier {
         ..headers.addAll(headers)
         ..body = jsonEncode({'name': ''});
 
-      final streamedResponse = await request.send();
+      final streamedResponse = await request.send().timeout(
+          const Duration(seconds: 90),
+          onTimeout: () => throw const SocketException('Farmer details timed out'));
       var response = await http.Response.fromStream(streamedResponse);
       debugPrint(
           '🚀 fetchFarmerDetails Response: ${response.statusCode} - ${response.body}');

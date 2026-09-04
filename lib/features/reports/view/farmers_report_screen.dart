@@ -1,12 +1,22 @@
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:http/http.dart' as http;
+import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
+import 'package:soya_app/core/constants/api_constants.dart';
 import 'package:soya_app/core/widgets/header_widget.dart';
 import 'package:soya_app/core/widgets/name_initials_avatar.dart';
+import 'package:soya_app/core/widgets/tost_message.dart';
 import 'package:soya_app/util/colors.dart';
 import 'package:soya_app/util/font_family.dart';
 
 import 'package:provider/provider.dart';
 import 'package:soya_app/features/home/controller/farmer_kyc_controller.dart';
+import 'package:soya_app/features/home/model/farmer_bank_model.dart';
+import 'package:soya_app/features/home/model/farmer_document_model.dart';
+import 'package:soya_app/features/home/model/farmer_land_model.dart';
 import 'package:soya_app/features/home/model/farmer_model.dart';
 import 'package:soya_app/features/reports/view/widgets/pagination_widget.dart';
 import 'package:soya_app/features/reports/view/widgets/farmer_bag_summary_dialog.dart';
@@ -454,6 +464,11 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
       );
 
   void _showFarmerDetails(BuildContext context, FarmerData farmer) {
+    if (farmer.id != null && farmer.id!.isNotEmpty) {
+      final kyc = context.read<FarmerKycController>();
+      final hasDocs = (farmer.documents != null && farmer.documents!.isNotEmpty);
+      if (!hasDocs) kyc.fetchFarmerDetails(farmer.id!);
+    }
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -529,74 +544,86 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
 
             // Details List
             Expanded(
-              child: ListView(
-                padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 20.h),
-                children: [
-                  _buildDetailCard(
-                    title: "Identity Details",
-                    icon: Icons.person_outline,
-                    items: [
-                      {
-                        "label": "Aadhaar No",
-                        "value": farmer.aadhaarNo ?? "N/A"
-                      },
-                      {"label": "PAN No", "value": farmer.panNo ?? "N/A"},
+              child: Consumer<FarmerKycController>(
+                builder: (context, controller, child) {
+                  return ListView(
+                    padding: EdgeInsets.fromLTRB(20.w, 0, 20.w, 20.h),
+                    children: [
+                      _buildDetailCard(
+                        title: "Identity Details",
+                        icon: Icons.person_outline,
+                        items: [
+                          {
+                            "label": "Aadhaar No",
+                            "value": farmer.aadhaarNo ?? "N/A"
+                          },
+                          {"label": "PAN No", "value": farmer.panNo ?? "N/A"},
+                        ],
+                      ),
+                      SizedBox(height: 16.h),
+                      _buildDetailCard(
+                        title: "Location Details",
+                        icon: Icons.location_on_outlined,
+                        items: [
+                          {
+                            "label": "Village",
+                            "value": farmer.villageAdd ?? "N/A"
+                          },
+                          {
+                            "label": "Gut Number",
+                            "value": farmer.gutNumber ?? "N/A"
+                          },
+                          {"label": "Taluka", "value": farmer.taluka ?? "N/A"},
+                          {
+                            "label": "District",
+                            "value": farmer.district ?? "N/A"
+                          },
+                        ],
+                      ),
+                      SizedBox(height: 16.h),
+                      _buildDetailCard(
+                        title: "Contact Details",
+                        icon: Icons.contact_mail_outlined,
+                        items: [
+                          {"label": "Phone", "value": farmer.phone ?? "N/A"},
+                          {"label": "Email", "value": farmer.email ?? "N/A"},
+                        ],
+                      ),
+                      SizedBox(height: 16.h),
+                      _buildDetailCard(
+                        title: "Registration Info",
+                        icon: Icons.assignment_ind_outlined,
+                        items: [
+                          {
+                            "label": "Vendor Name",
+                            "value": farmer.vendorName ?? "N/A"
+                          },
+                          {
+                            "label": "KYC Documents",
+                            "value": (farmer.totalKycDocuments ?? 0).toString()
+                          },
+                          {
+                            "label": "Total Lands",
+                            "value": (farmer.totalLands ?? 0).toString()
+                          },
+                        ],
+                      ),
+                      SizedBox(height: 16.h),
+                      _buildKycDocumentsCard(context, controller, farmer),
+                      SizedBox(height: 16.h),
+                      _buildDetailCard(
+                        title: "System Info",
+                        icon: Icons.info_outline,
+                        items: [
+                          {
+                            "label": "Created At",
+                            "value": _formatDateTime(farmer.createdAt)
+                          },
+                        ],
+                      ),
                     ],
-                  ),
-                  SizedBox(height: 16.h),
-                  _buildDetailCard(
-                    title: "Location Details",
-                    icon: Icons.location_on_outlined,
-                    items: [
-                      {"label": "Village", "value": farmer.villageAdd ?? "N/A"},
-                      {
-                        "label": "Gut Number",
-                        "value": farmer.gutNumber ?? "N/A"
-                      },
-                      {"label": "Taluka", "value": farmer.taluka ?? "N/A"},
-                      {"label": "District", "value": farmer.district ?? "N/A"},
-                    ],
-                  ),
-                  SizedBox(height: 16.h),
-                  _buildDetailCard(
-                    title: "Contact Details",
-                    icon: Icons.contact_mail_outlined,
-                    items: [
-                      {"label": "Phone", "value": farmer.phone ?? "N/A"},
-                      {"label": "Email", "value": farmer.email ?? "N/A"},
-                    ],
-                  ),
-                  SizedBox(height: 16.h),
-                  _buildDetailCard(
-                    title: "Registration Info",
-                    icon: Icons.assignment_ind_outlined,
-                    items: [
-                      {
-                        "label": "Vendor Name",
-                        "value": farmer.vendorName ?? "N/A"
-                      },
-                      {
-                        "label": "KYC Documents",
-                        "value": (farmer.totalKycDocuments ?? 0).toString()
-                      },
-                      {
-                        "label": "Total Lands",
-                        "value": (farmer.totalLands ?? 0).toString()
-                      },
-                    ],
-                  ),
-                  SizedBox(height: 16.h),
-                  _buildDetailCard(
-                    title: "System Info",
-                    icon: Icons.info_outline,
-                    items: [
-                      {
-                        "label": "Created At",
-                        "value": _formatDateTime(farmer.createdAt)
-                      },
-                    ],
-                  ),
-                ],
+                  );
+                },
               ),
             ),
 
@@ -836,6 +863,501 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
         ],
       ),
     );
+  }
+
+  Widget _buildKycDocumentsCard(
+      BuildContext context, FarmerKycController controller, FarmerData farmer) {
+    final FarmerData source = controller.fetchedFarmerDetail ?? farmer;
+
+    final List<_DocEntry> entries = <_DocEntry>[];
+
+    final List<String> landUrls = <String>[];
+    final List<DocumentData> kycDocs =
+        source.documents ?? controller.fetchedDocuments ?? [];
+    for (final doc in kycDocs) {
+      final List<String> urlList = (doc.documentUrls?.isNotEmpty ?? false)
+          ? doc.documentUrls!
+          : (doc.imageUrl != null && doc.imageUrl!.isNotEmpty
+              ? [doc.imageUrl!]
+              : []);
+      if (urlList.isEmpty) continue;
+      final String type = doc.type ?? "Document";
+      if (type == 'LAND_712' || type == 'LAND') {
+        landUrls.addAll(urlList);
+      } else {
+        entries.add(_DocEntry(
+          type: type,
+          label: _docTypeLabel(type) ?? type,
+          urls: urlList,
+        ));
+      }
+    }
+
+    final List<LandData> lands = source.lands ?? controller.fetchedLands ?? [];
+    for (final land in lands) {
+      final List<String> urls = (land.documentUrls?.isNotEmpty ?? false)
+          ? land.documentUrls!
+          : (land.documentUrl != null && land.documentUrl!.isNotEmpty
+              ? [land.documentUrl!]
+              : []);
+      landUrls.addAll(urls);
+    }
+
+    if (landUrls.isNotEmpty) {
+      entries.insert(0, _DocEntry(
+        type: "LAND",
+        label: "Land Details",
+        urls: landUrls.toSet().toList(),
+      ));
+    }
+
+    final List<BankData> banks = source.banks ?? controller.fetchedBank ?? [];
+    for (final bank in banks) {
+      final List<String> urls = (bank.passbookImages?.isNotEmpty ?? false)
+          ? bank.passbookImages!
+          : (bank.passbookImage != null && bank.passbookImage!.isNotEmpty
+              ? [bank.passbookImage!]
+              : []);
+      if (urls.isEmpty) continue;
+      entries.add(_DocEntry(
+        type: "PASSBOOK",
+        label: "Bank Passbook",
+        urls: urls,
+      ));
+    }
+
+    return Container(
+      decoration: BoxDecoration(
+        color: whiteColor,
+        borderRadius: BorderRadius.circular(20.r),
+        boxShadow: [
+          BoxShadow(
+            color: blackColor.withOpacity(0.03),
+            blurRadius: 10,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: EdgeInsets.fromLTRB(16.w, 16.h, 16.w, 12.h),
+            child: Row(
+              children: [
+                Icon(Icons.folder_open_outlined, size: 20.sp, color: appColor),
+                SizedBox(width: 10.w),
+                Expanded(
+                  child: Text(
+                    "KYC Documents",
+                    style: TextStyle(
+                      fontSize: 15.sp,
+                      fontWeight: FontWeight.bold,
+                      color: blackColor.withOpacity(0.8),
+                      fontFamily: FontFamily.jost,
+                    ),
+                  ),
+                ),
+                if (entries.isEmpty)
+                  SizedBox(
+                    width: 18.sp,
+                    height: 18.sp,
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2,
+                      color: appColor,
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const Divider(height: 1),
+          if (entries.isEmpty)
+            Padding(
+              padding: EdgeInsets.all(16.w),
+              child: Text(
+                "No documents uploaded yet",
+                style: TextStyle(
+                  fontSize: 13.sp,
+                  color: greyColor,
+                  fontFamily: FontFamily.jost,
+                ),
+              ),
+            )
+          else
+            Padding(
+              padding: EdgeInsets.all(16.w),
+              child: Column(
+                children: entries.map((entry) {
+                  final bool allImages =
+                      entry.urls.every((u) => _isImageDoc(u));
+                  return Padding(
+                    padding: EdgeInsets.only(bottom: 16.h),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.folder_outlined,
+                              size: 14.sp,
+                              color: appColor,
+                            ),
+                            SizedBox(width: 6.w),
+                            Expanded(
+                              child: Text(
+                                entry.label,
+                                style: TextStyle(
+                                  fontSize: 13.sp,
+                                  fontWeight: FontWeight.w600,
+                                  color: blackColor,
+                                  fontFamily: FontFamily.jost,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 8.h),
+                        SizedBox(
+                          height: 76.h,
+                          child: ListView.separated(
+                            scrollDirection: Axis.horizontal,
+                            itemCount: entry.urls.length,
+                            separatorBuilder: (_, __) => SizedBox(width: 8.w),
+                            itemBuilder: (context, index) {
+                              final url = entry.urls[index];
+                              final fullUrl = _buildDocViewUrl(url);
+                              if (allImages) {
+                                return GestureDetector(
+                                  onTap: () =>
+                                      _showDocThumbnailViewer(context, entry,
+                                          index),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(8.r),
+                                    child: Container(
+                                      width: 76.w,
+                                      height: 76.h,
+                                      color: greyColor.withOpacity(0.15),
+                                      child: Image.network(
+                                        fullUrl,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stack) {
+                                          return Center(
+                                            child: Icon(
+                                              Icons.broken_image_outlined,
+                                              color: greyColor,
+                                            ),
+                                          );
+                                        },
+                                        loadingBuilder:
+                                            (context, child, progress) {
+                                          if (progress == null) return child;
+                                          return Center(
+                                            child: SizedBox(
+                                              width: 18,
+                                              height: 18,
+                                              child:
+                                                  CircularProgressIndicator(
+                                                strokeWidth: 2,
+                                                color: appColor,
+                                              ),
+                                            ),
+                                          );
+                                        },
+                                      ),
+                                    ),
+                                  ),
+                                );
+                              }
+                              return GestureDetector(
+                                onTap: () =>
+                                    _viewUrls(context, [url]),
+                                child: Container(
+                                  width: 76.w,
+                                  height: 76.h,
+                                  decoration: BoxDecoration(
+                                    color: appColor.withOpacity(0.1),
+                                    borderRadius: BorderRadius.circular(8.r),
+                                  ),
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        _isPdfDoc(url)
+                                            ? Icons.picture_as_pdf_outlined
+                                            : Icons.file_copy_outlined,
+                                        color: appColor,
+                                        size: 24.sp,
+                                      ),
+                                      SizedBox(height: 4.h),
+                                      Padding(
+                                        padding: EdgeInsets.symmetric(
+                                            horizontal: 4.w),
+                                        child: Text(
+                                          _fileName(url),
+                                          maxLines: 1,
+                                          overflow: TextOverflow.ellipsis,
+                                          style: TextStyle(
+                                            fontSize: 8.sp,
+                                            color: blackColor,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }).toList(),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String? _docTypeLabel(String? type) {
+    switch (type) {
+      case 'AADHAAR':
+        return 'Aadhaar Card';
+      case 'PAN':
+        return 'PAN Card';
+      case 'DRIVING_LICENSE':
+        return 'Driving License';
+      case 'LAND_712':
+        return 'Land 712';
+      case 'LAND':
+        return 'Land';
+      case 'PASSBOOK':
+        return 'Bank Passbook';
+      default:
+        return type;
+    }
+  }
+
+  String _buildDocViewUrl(String url) {
+    if (url.startsWith('http')) return url;
+    final path = url.startsWith('/') ? url : '/$url';
+    return '${ApiConstants.imageBaseUrl}$path';
+  }
+
+  bool _isImageDoc(String url) {
+    final path = url.split('?').first;
+    final ext =
+        path.contains('.') ? path.split('.').last.toLowerCase() : '';
+    return ['jpg', 'jpeg', 'png', 'bmp', 'gif', 'webp'].contains(ext);
+  }
+
+  bool _isPdfDoc(String url) {
+    final path = url.split('?').first;
+    return path.toLowerCase().endsWith('.pdf');
+  }
+
+  String _fileName(String url) {
+    final cleaned = url.split('?').first;
+    final segments = cleaned.split('/');
+    final name = segments.isNotEmpty ? segments.last : cleaned;
+    return name.isEmpty ? "document" : name;
+  }
+
+  Future<void> _viewUrls(BuildContext context, List<String> urlList) async {
+    if (urlList.length == 1) {
+      final url = urlList.first;
+      if (_isImageDoc(url)) {
+        _showDocFullImage(context, _buildDocViewUrl(url));
+      } else {
+        await _openNetworkDocument(context, url);
+      }
+      return;
+    }
+
+    final selected = await showModalBottomSheet<String>(
+      context: context,
+      backgroundColor: whiteColor,
+      showDragHandle: true,
+      builder: (_) => SafeArea(
+        child: ListView(
+          shrinkWrap: true,
+          children: [
+            for (final url in urlList)
+              ListTile(
+                leading: Icon(
+                  _isImageDoc(url)
+                      ? Icons.image_outlined
+                      : Icons.picture_as_pdf_outlined,
+                  color: appColor,
+                ),
+                title: Text(
+                  _fileName(url),
+                  style: const TextStyle(fontFamily: FontFamily.jost),
+                ),
+                onTap: () => Navigator.pop(context, url),
+              ),
+          ],
+        ),
+      ),
+    );
+
+    if (selected != null && context.mounted) {
+      if (_isImageDoc(selected)) {
+        _showDocFullImage(context, _buildDocViewUrl(selected));
+      } else {
+        await _openNetworkDocument(context, selected);
+      }
+    }
+  }
+
+  void _showDocThumbnailViewer(
+      BuildContext context, _DocEntry entry, int initialIndex) {
+    final List<String> imageUrls = [
+      for (final u in entry.urls)
+        if (_isImageDoc(u)) _buildDocViewUrl(u)
+    ];
+    if (imageUrls.isEmpty) return;
+
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            PageView.builder(
+              controller: PageController(initialPage: initialIndex),
+              itemCount: imageUrls.length,
+              itemBuilder: (context, index) => GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Center(
+                  child: Image.network(
+                    imageUrls[index],
+                    fit: BoxFit.contain,
+                    width: double.infinity,
+                    height: double.infinity,
+                    errorBuilder: (context, error, stackTrace) {
+                      return const Center(
+                        child: Icon(Icons.error_outline,
+                            color: Colors.white, size: 40),
+                      );
+                    },
+                    loadingBuilder: (context, child, loadingProgress) {
+                      if (loadingProgress == null) return child;
+                      return const Center(
+                        child:
+                            CircularProgressIndicator(color: Colors.white),
+                      );
+                    },
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: EdgeInsets.all(6.r),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.close, color: Colors.white, size: 24.sp),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showDocFullImage(BuildContext context, String url) {
+    showDialog(
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Stack(
+            children: [
+              Center(
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Center(
+                      child: Icon(Icons.error_outline,
+                          color: Colors.white, size: 40),
+                    );
+                  },
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    );
+                  },
+                ),
+              ),
+              Positioned(
+                top: 16,
+                right: 16,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: EdgeInsets.all(6.r),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.close, color: Colors.white, size: 24.sp),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openNetworkDocument(BuildContext context, String url) async {
+    try {
+      final fullUrl = _buildDocViewUrl(url);
+      final res = await http
+          .get(Uri.parse(fullUrl))
+          .timeout(const Duration(seconds: 60));
+      if (res.statusCode != 200 || res.bodyBytes.isEmpty) {
+        if (context.mounted) {
+          ToastMessage.show(context,
+              message: 'Unable to download document', isError: true);
+        }
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      final ext = _isPdfDoc(url) ? '.pdf' : '.jpg';
+      final file = File(
+          '${dir.path}/doc_${DateTime.now().millisecondsSinceEpoch}$ext');
+      await file.writeAsBytes(res.bodyBytes);
+      if (!context.mounted) return;
+      final result = await OpenFile.open(file.path);
+      if (result.type != ResultType.done && context.mounted) {
+        ToastMessage.show(context,
+            message: 'No app found to open this file', isError: true);
+      }
+    } catch (e) {
+      debugPrint('Error opening document: $e');
+      if (context.mounted) {
+        ToastMessage.show(context,
+            message: 'Unable to open this file', isError: true);
+      }
+    }
   }
 
   String _formatDateTime(String? dateStr) {
@@ -1158,4 +1680,16 @@ class _FarmersReportScreenState extends State<FarmersReportScreen> {
       },
     );
   }
+}
+
+class _DocEntry {
+  final String type;
+  final String label;
+  final List<String> urls;
+
+  _DocEntry({
+    required this.type,
+    required this.label,
+    required this.urls,
+  });
 }

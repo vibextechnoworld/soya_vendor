@@ -53,6 +53,7 @@ class LandData {
   final String? landType;
   final double? area;
   final String? documentUrl;
+  final List<String>? documentUrls;
   final String? createdAt;
   final String? villageAdd;
   final String? taluka;
@@ -68,6 +69,7 @@ class LandData {
     this.landType,
     this.area,
     this.documentUrl,
+    this.documentUrls,
     this.createdAt,
     this.villageAdd,
     this.taluka,
@@ -94,6 +96,7 @@ class LandData {
               : json['area'] as double?)
           : null,
       documentUrl: (urls != null && urls.isNotEmpty) ? urls.first : single,
+      documentUrls: urls,
       createdAt: json['createdAt'] as String?,
       villageAdd: json['villageAdd'] as String?,
       taluka: json['taluka'] as String?,
@@ -112,6 +115,7 @@ class LandData {
       'landType': landType,
       'area': area,
       'documentUrl': documentUrl,
+      'documentUrls': documentUrls,
       'createdAt': createdAt,
       'villageAdd': villageAdd,
       'taluka': taluka,

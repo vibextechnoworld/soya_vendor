@@ -25,6 +25,7 @@ import 'package:soya_app/util/string_utils.dart';
 import 'package:soya_app/features/location/controller/location_provider.dart';
 import 'package:soya_app/features/location/model/location_model.dart';
 import 'package:dropdown_search/dropdown_search.dart';
+import 'package:open_file/open_file.dart';
 import 'package:soya_app/features/home/view/farmer_kyc_list_screen.dart';
 
 class _AdditionalLandEntry {
@@ -107,6 +108,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   final ScrollController _scrollController = ScrollController();
   final _branchNameController = TextEditingController();
   String? _selectedBankId; // Master bank UUID from /bank-details/
+  bool _showAccountNo = false;
   String?
       _farmerBankRecordId; // Farmer's own bank record UUID (from fetched BankData.id)
   File? _passbookImage;
@@ -234,6 +236,9 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
               _middleNameController.text =
                   parts.sublist(1, parts.length - 1).join(' ');
             }
+          }
+          if (_holderNameController.text.isEmpty) {
+            _holderNameController.text = _combinedFarmerName();
           }
           if (_gutNumberController.text.isEmpty) {
             _gutNumberController.text = farmer.gutNumber ?? '';
@@ -429,13 +434,24 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     });
   }
 
+  String _combinedFarmerName() {
+    final parts = [
+      _firstNameController.text.trim(),
+      _middleNameController.text.trim(),
+      _lastNameController.text.trim(),
+    ].where((p) => p.isNotEmpty);
+    return titleCase(parts.join(' '));
+  }
+
   void _fillBankData(BankData bank) {
     setState(() {
       _bankNameController.text = titleCase(bank.bankName);
       _accountNoController.text = bank.accountNo ?? '';
       _confirmAccountNoController.text = bank.accountNo ?? '';
       _ifscController.text = bank.ifsc ?? '';
-      _holderNameController.text = bank.holderName ?? '';
+      _holderNameController.text = (bank.holderName?.isNotEmpty ?? false)
+          ? bank.holderName!
+          : _combinedFarmerName();
       _branchNameController.text = titleCase(bank.branchName);
 
       // Store farmer's bank record ID for update URL
@@ -2924,91 +2940,124 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             _buildFieldLabel('Bank Name *'),
-            DropdownSearch<BankDetailData>(
-              popupProps: PopupProps.menu(
-                showSearchBox: true,
-                searchFieldProps: TextFieldProps(
-                  decoration: InputDecoration(
-                    hintText: "Search Bank",
-                    contentPadding:
-                        EdgeInsets.symmetric(horizontal: 12.w, vertical: 12.h),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(6.r),
-                    ),
-                  ),
-                ),
-              ),
-              asyncItems: (filter) {
-                final banks = _controller.bankDetails;
-                return Future.value(
-                    banks + [BankDetailData(id: 'other', bankName: 'Other')]);
-              },
-              itemAsString: (item) {
-                final name = titleCase(item.bankName);
-                final ifsc = item.ifsc ?? '';
-                final branch = item.branchName ?? '';
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
+                  child: DropdownSearch<BankDetailData>(
+                        popupProps: PopupProps.menu(
+                          showSearchBox: true,
+                          searchFieldProps: TextFieldProps(
+                            decoration: InputDecoration(
+                              hintText: "Search Bank",
+                              contentPadding: EdgeInsets.symmetric(
+                                  horizontal: 12.w, vertical: 12.h),
+                              border: OutlineInputBorder(
+                                borderRadius: BorderRadius.circular(6.r),
+                              ),
+                            ),
+                          ),
+                        ),
+                        asyncItems: (filter) {
+                          final banks = _controller.bankDetails;
+                          return Future.value(banks +
+                              [
+                                BankDetailData(
+                                    id: 'other', bankName: 'Other')
+                              ]);
+                        },
+                        itemAsString: (item) {
+                          final name = titleCase(item.bankName);
+                          final ifsc = item.ifsc ?? '';
+                          final branch = item.branchName ?? '';
 
-                String display = name;
-                if (branch.isNotEmpty) {
-                  display += ' - ${titleCase(branch)}';
-                }
-                if (ifsc.isNotEmpty) {
-                  display += ' ($ifsc)';
-                }
-                return display;
-              },
-              compareFn: (i1, i2) => i1.id == i2.id,
-              dropdownDecoratorProps: DropDownDecoratorProps(
-                dropdownSearchDecoration: InputDecoration(
-                  filled: true,
-                  fillColor: whiteColor,
-                  isDense: true,
-                  hintText: "Select Bank",
-                  contentPadding:
-                      EdgeInsets.symmetric(horizontal: 12.w, vertical: 11.h),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(6.r),
-                    borderSide: BorderSide(color: Colors.grey.withOpacity(0.4)),
+                          String display = name;
+                          if (branch.isNotEmpty) {
+                            display += ' - ${titleCase(branch)}';
+                          }
+                          if (ifsc.isNotEmpty) {
+                            display += ' ($ifsc)';
+                          }
+                          return display;
+                        },
+                        compareFn: (i1, i2) => i1.id == i2.id,
+                        dropdownDecoratorProps: DropDownDecoratorProps(
+                          dropdownSearchDecoration: InputDecoration(
+                            filled: true,
+                            fillColor: whiteColor,
+                            isDense: true,
+                            hintText: "Select Bank",
+                            contentPadding: EdgeInsets.symmetric(
+                                horizontal: 12.w, vertical: 11.h),
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(6.r),
+                              borderSide:
+                                  BorderSide(color: Colors.grey.withOpacity(0.4)),
+                            ),
+                          ),
+                        ),
+                        onChanged: (value) {
+                          if (value != null) {
+                            setState(() {
+                              _selectedBankId = value.id;
+                              if (value.id == 'other') {
+                                _bankNameController.text =
+                                    _otherBankNameController.text;
+                                _ifscController.clear();
+                                _branchNameController.clear();
+                              } else {
+                                _bankNameController.text =
+                                    titleCase(value.bankName);
+                                _ifscController.text = value.ifsc ?? '';
+                                _branchNameController.text =
+                                    titleCase(value.branchName);
+                                _otherBankNameController.clear();
+                              }
+                            });
+                            debugPrint(
+                                '🏦 Selected bank: id=${value.id}, name=${value.bankName}, ifsc=${value.ifsc}, branch=${value.branchName}');
+                          }
+                        },
+                        selectedItem: _selectedBankId == 'other'
+                            ? BankDetailData(id: 'other', bankName: 'Other')
+                            : (_controller
+                                    .bankDetails
+                                    .any((b) => b.id == _selectedBankId)
+                                ? _controller.bankDetails
+                                    .firstWhere((b) => b.id == _selectedBankId)
+                                : (_bankNameController.text.isNotEmpty
+                                    ? BankDetailData(
+                                        id: _selectedBankId,
+                                        bankName: _bankNameController.text,
+                                        ifsc: _ifscController.text,
+                                        branchName: _branchNameController.text,
+                                      )
+                                    : null)),
+                        validator: (value) => (value == null ||
+                                value.bankName == null ||
+                                value.bankName!.isEmpty)
+                            ? 'Please select bank name'
+                            : null,
+                      ),
+                ),
+                SizedBox(width: 8.w),
+                // Refresh icon beside the dropdown
+                GestureDetector(
+                  onTap: () => _controller.fetchBankDetails(),
+                  child: Container(
+                    padding: EdgeInsets.all(8.r),
+                    decoration: BoxDecoration(
+                      color: Colors.grey.withOpacity(0.1),
+                      shape: BoxShape.circle,
+                      border:
+                          Border.all(color: Colors.grey.withOpacity(0.4)),
+                    ),
+                    child: Icon(Icons.refresh,
+                        color: primeryColor, size: 20.sp),
                   ),
                 ),
-              ),
-              onChanged: (value) {
-                if (value != null) {
-                  setState(() {
-                    _selectedBankId = value.id;
-                    if (value.id == 'other') {
-                      _bankNameController.text = _otherBankNameController.text;
-                      _ifscController.clear();
-                      _branchNameController.clear();
-                    } else {
-                      _bankNameController.text = titleCase(value.bankName);
-                      _ifscController.text = value.ifsc ?? '';
-                      _branchNameController.text = titleCase(value.branchName);
-                      _otherBankNameController.clear();
-                    }
-                  });
-                  debugPrint(
-                      '🏦 Selected bank: id=${value.id}, name=${value.bankName}, ifsc=${value.ifsc}, branch=${value.branchName}');
-                }
-              },
-              selectedItem: _selectedBankId == 'other'
-                  ? BankDetailData(id: 'other', bankName: 'Other')
-                  : (_controller.bankDetails.any((b) => b.id == _selectedBankId)
-                      ? _controller.bankDetails
-                          .firstWhere((b) => b.id == _selectedBankId)
-                      : (_bankNameController.text.isNotEmpty
-                          ? BankDetailData(
-                              id: _selectedBankId,
-                              bankName: _bankNameController.text,
-                              ifsc: _ifscController.text,
-                              branchName: _branchNameController.text,
-                            )
-                          : null)),
-              validator: (value) => (value == null ||
-                      value.bankName == null ||
-                      value.bankName!.isEmpty)
-                  ? 'Please select bank name'
-                  : null,
+                SizedBox(width: 8.w),
+              ],
             ),
             if (_selectedBankId == 'other') ...[
               SizedBox(height: 12.h),
@@ -3046,6 +3095,19 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                         controller: _accountNoController,
                         keyboardType: TextInputType.text,
                         autovalidateMode: AutovalidateMode.onUserInteraction,
+                        obscureText: !_showAccountNo,
+                        enableCopyPaste: false,
+                        suffixIcon: IconButton(
+                          icon: Icon(
+                            _showAccountNo
+                                ? Icons.visibility_off
+                                : Icons.visibility,
+                            size: 20.sp,
+                            color: greyColor,
+                          ),
+                          onPressed: () => setState(
+                              () => _showAccountNo = !_showAccountNo),
+                        ),
                         onChanged: (value) {
                           if (_confirmAccountNoController.text.isNotEmpty) {
                             _bankFormKey.currentState?.validate();
@@ -3071,6 +3133,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                         controller: _confirmAccountNoController,
                         keyboardType: TextInputType.text,
                         autovalidateMode: AutovalidateMode.onUserInteraction,
+                        obscureText: _showAccountNo,
+                        enableCopyPaste: false,
                         onChanged: (value) {
                           if (_accountNoController.text.isNotEmpty) {
                             _bankFormKey.currentState?.validate();
@@ -3225,6 +3289,9 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     Function(String)? onChanged,
     VoidCallback? onTap,
     AutovalidateMode? autovalidateMode,
+    bool obscureText = false,
+    bool enableCopyPaste = true,
+    Widget? suffixIcon,
   }) {
     return TextFormField(
       controller: controller,
@@ -3238,8 +3305,13 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       enabled: enabled,
       textCapitalization: textCapitalization,
       inputFormatters: inputFormatters,
+      obscureText: obscureText,
+      enableSuggestions: !obscureText,
+      autocorrect: !obscureText,
+      enableInteractiveSelection: enableCopyPaste,
       decoration: InputDecoration(
         counterText: '',
+        suffixIcon: suffixIcon,
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(6.r),
           borderSide: BorderSide(color: Colors.grey.withOpacity(0.4)),
@@ -3332,6 +3404,23 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     );
   }
 
+  Future<void> _openDocument(File file) async {
+    if (!file.existsSync()) return;
+    try {
+      final result = await OpenFile.open(file.path);
+      if (result.type != ResultType.done && mounted) {
+        ToastMessage.show(context,
+            message: 'No app found to open this file', isError: true);
+      }
+    } catch (e) {
+      debugPrint('Error opening document: $e');
+      if (mounted) {
+        ToastMessage.show(context,
+            message: 'Unable to open this file', isError: true);
+      }
+    }
+  }
+
   bool _isImageFile(String path) {
     final extension =
         path.contains('.') ? path.split('.').last.toLowerCase() : '';
@@ -3351,7 +3440,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       final res = await http.get(
         Uri.parse(_buildFullImageUrl(url)),
         headers: headers,
-      );
+      ).timeout(const Duration(seconds: 60));
       if (res.statusCode == 200 && res.bodyBytes.isNotEmpty) {
         final dir = await getTemporaryDirectory();
         final ext = url.toLowerCase().contains('.png') ? '.png' : '.jpg';
@@ -3390,10 +3479,14 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     final bool hasImage = isSelectedFileImage || isRemoteUrlImage;
 
     return GestureDetector(
-      onTap: hasImage ? () => _showFullImage(
-        localFile: selectedFile,
-        networkUrl: fullUrl,
-      ) : onTap,
+      onTap: hasImage
+          ? () => _showFullImage(
+                localFile: selectedFile,
+                networkUrl: fullUrl,
+              )
+          : selectedFile != null
+              ? () => _openDocument(selectedFile)
+              : onTap,
       child: DottedBorder(
         color: Colors.grey.withOpacity(0.4),
         strokeWidth: 2,
@@ -3415,7 +3508,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                           borderRadius: BorderRadius.circular(8.r),
                           child: Image.file(
                             selectedFile,
-                            fit: BoxFit.cover,
+                            fit: BoxFit.contain,
                           ),
                         )
                       : Center(
@@ -3450,7 +3543,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                               borderRadius: BorderRadius.circular(8.r),
                               child: Image.network(
                                 fullUrl,
-                                fit: BoxFit.cover,
+                                fit: BoxFit.contain,
                                 headers: _authToken != null
                                     ? {'Authorization': 'Bearer $_authToken'}
                                     : null,
@@ -3628,10 +3721,16 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                   children: [
                     GestureDetector(
                       onTap: () {
-                        _showFullImage(
-                          localFile: isLocal ? selectedFiles[index] : null,
-                          networkUrl: !isLocal ? fullUrl : null,
-                        );
+                        if (isLocal) {
+                          if (_isImageFile(selectedFiles[index].path)) {
+                            _showFullImage(
+                                localFile: selectedFiles[index]);
+                          } else {
+                            _openDocument(selectedFiles[index]);
+                          }
+                        } else {
+                          _showFullImage(networkUrl: fullUrl);
+                        }
                       },
                       child: Container(
                         width: 120.w,
@@ -3646,16 +3745,31 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                         child: ClipRRect(
                           borderRadius: BorderRadius.circular(8.r),
                           child: isLocal
-                              ? Image.file(
-                                  selectedFiles[index],
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: double.infinity,
-                                )
+                              ? (_isImageFile(selectedFiles[index].path)
+                                  ? Image.file(
+                                      selectedFiles[index],
+                                      fit: BoxFit.contain,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                    )
+                                  : Center(
+                                      child: Icon(
+                                        selectedFiles[index]
+                                                    .path
+                                                    .split('.')
+                                                    .last
+                                                    .toLowerCase() ==
+                                                'pdf'
+                                            ? Icons.picture_as_pdf_rounded
+                                            : Icons.insert_drive_file_rounded,
+                                        color: Colors.red.shade400,
+                                        size: 30.sp,
+                                      ),
+                                    ))
                               : (fullUrl != null
                                   ? Image.network(
                                       fullUrl,
-                                      fit: BoxFit.cover,
+                                      fit: BoxFit.contain,
                                       width: double.infinity,
                                       height: double.infinity,
                                       headers: _authToken != null

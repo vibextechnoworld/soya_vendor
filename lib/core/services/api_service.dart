@@ -27,13 +27,14 @@ class ApiService {
 
   /// Wrapper for all HTTP requests to handle exceptions and timeouts
   Future<http.Response> _handleRequest(
-      Future<http.Response> Function() request) async {
+      Future<http.Response> Function() request,
+      {Duration? timeout}) async {
     if (!await _isConnected()) {
       throw const SocketException('No internet connection');
     }
 
     try {
-      final response = await request().timeout(_timeout);
+      final response = await request().timeout(timeout ?? _timeout);
 
       if (response.statusCode == 401) {
         _logout();
@@ -218,7 +219,10 @@ class ApiService {
     Map<String, String>? fields,
     List<http.MultipartFile>? files,
     bool includeAuth = true,
+    Duration? timeout,
   }) async {
+    final effectiveTimeout = timeout ??
+        const Duration(seconds: 180);
     return await _handleRequest(() async {
       final request = http.MultipartRequest(method, Uri.parse(url));
 
@@ -254,6 +258,6 @@ class ApiService {
       final response = await http.Response.fromStream(streamedResponse);
       print('🌐 MULTIPART Response [${response.statusCode}]: ${response.body}');
       return response;
-    });
+    }, timeout: effectiveTimeout);
   }
 }

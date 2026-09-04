@@ -54,6 +54,7 @@ class BankData {
   final String? holderName;
   final bool? isPrimary;
   final String? passbookImage;
+  final List<String>? passbookImages;
 
   BankData({
     this.id,
@@ -65,10 +66,15 @@ class BankData {
     this.holderName,
     this.isPrimary,
     this.passbookImage,
+    this.passbookImages,
   });
 
   factory BankData.fromJson(Map<String, dynamic> json) {
-    final List<String>? images = (json['passbookImages'] as List?)
+    List<String>? images = (json['documentUrls'] as List?)
+        ?.whereType<String>()
+        .where((u) => u.isNotEmpty)
+        .toList();
+    images ??= (json['passbookImages'] as List?)
         ?.whereType<String>()
         .where((u) => u.isNotEmpty)
         .toList();
@@ -85,6 +91,7 @@ class BankData {
       passbookImage: (images != null && images.isNotEmpty)
           ? images.first
           : single,
+      passbookImages: images,
     );
   }
 

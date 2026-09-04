@@ -2388,7 +2388,7 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                           _tableCell(
                             "${v.custom ?? 0}", //custom is (actual/entered by user)
                             isBold: true,
-                            color: (v.actual ?? 0) > (v.custom ?? 0)
+                            color: (v.actual ?? 0) < (v.custom ?? 0)
                                 ? redColor
                                 : blackColor,
                           ),
