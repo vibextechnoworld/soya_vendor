@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import 'package:http/http.dart' as http;
 import 'package:provider/provider.dart';
+import 'package:soya_app/core/constants/api_constants.dart';
 import 'package:soya_app/core/widgets/header_widget.dart';
 import 'package:soya_app/core/widgets/name_initials_avatar.dart';
 import 'package:soya_app/features/home/controller/billing_controller.dart';
@@ -16,6 +18,7 @@ import 'package:share_plus/share_plus.dart';
 import 'package:soya_app/core/widgets/tost_message.dart';
 import 'package:soya_app/core/widgets/empty_state_widget.dart';
 import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
 import 'package:soya_app/features/reports/view/widgets/report_generation_date.dart';
 import 'package:flutter/services.dart';
 import 'package:soya_app/util/string_utils.dart';
@@ -163,6 +166,12 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
               ),
               const ReportGenerationDate(),
             ],
+          ),
+          const Spacer(),
+          IconButton(
+            tooltip: "Download Excel",
+            icon: Icon(Icons.download_outlined, color: appColor, size: 22.sp),
+            onPressed: () => _handleExcelDownload(context),
           ),
         ],
       ),
@@ -518,6 +527,224 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
     }
   }
 
+  Future<void> _handleExcelDownload(BuildContext context) async {
+    final controller = context.read<BillingController>();
+    final bills = List<BillModel>.from(controller.bills);
+
+    if (bills.isEmpty) {
+      ToastMessage.show(context,
+          message: "No bills to export", isError: true);
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Row(
+          children: [
+            const SizedBox(
+              width: 20,
+              height: 20,
+              child: CircularProgressIndicator(
+                  strokeWidth: 2, color: Colors.white),
+            ),
+            SizedBox(width: 12.w),
+            const Text("Preparing Excel..."),
+          ],
+        ),
+        backgroundColor: appColor,
+        duration: const Duration(seconds: 10),
+      ),
+    );
+
+    try {
+      final csv = _buildBillingCsv(bills);
+
+      final dir = Platform.isAndroid || Platform.isIOS
+          ? await getApplicationDocumentsDirectory()
+          : await getDownloadsDirectory() ??
+              await getApplicationDocumentsDirectory();
+      final timestamp =
+          DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+      final file = File(
+          '${dir.path}/Billing_Report_$timestamp.csv');
+      await file.writeAsString(csv);
+
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ToastMessage.show(context,
+            message: "Excel saved to Downloads", isError: false);
+        OpenFile.open(file.path);
+      }
+    } catch (e) {
+      debugPrint("Export error: $e");
+      if (mounted) {
+        ScaffoldMessenger.of(context).hideCurrentSnackBar();
+        ToastMessage.show(context,
+            message: "Error exporting: $e", isError: true);
+      }
+    }
+  }
+
+  String _csvCell(String? value) {
+    if (value == null) return '';
+    final s = value.replaceAll('"', '""');
+    return '"$s"';
+  }
+
+  String _buildBillingCsv(List<BillModel> bills) {
+    final controller =
+        Provider.of<BillingController>(context, listen: false);
+
+    final sb = StringBuffer();
+
+    sb.write(_csvCell("Billing Report"));
+    sb.writeln(_csvCell(_csvMeta()));
+
+    final headers = <String>[
+      'Profile',
+      'Farmer Name',
+      'Commodity',
+      'Purchase Point Name',
+      'Transaction Date',
+      'Kissan ID',
+      'No of Bags',
+      'GRN No',
+      'KP-No',
+      'Gross Weight',
+      'Bag Weight',
+      'Net Weight',
+      'FM',
+      'Damage',
+      'Moisture',
+      'Purchase Rate',
+      'Total Amount',
+      'Bill Status',
+      'Payment Status',
+      'Location',
+      'Remark(s)',
+      'Actions',
+    ];
+
+    sb.writeln(headers.map(_csvCell).join(','));
+
+    for (final bill in bills) {
+      final farmerName = bill.farmer?.name == null
+          ? "N/A"
+          : titleCase(bill.farmer?.name);
+      final date = _formatReportDate(bill.billDate);
+
+      final unit = bill.primaryUnit ??
+          (bill.items?.isNotEmpty == true ? bill.items!.first.unit : "KG");
+
+      final grossValue = bill.primaryQuantity?.toDouble() ?? 0.0;
+      final bagValue = (bill.goniWeight ?? 0).toDouble();
+      final netValue = (grossValue - bagValue).clamp(0, grossValue);
+
+      final rateVal = bill.calculationDetails?.rateAfterLabDeductionRounded ??
+          bill.ratePerUnit ??
+          0;
+      final amount = bill.netPayable ?? bill.totalAmount ?? 0;
+      final status = bill.status ?? "Pending";
+
+      final fmVal = _customInputVal(bill.deductions, 'FM');
+      final damageVal = _customInputVal(bill.deductions, 'Damage');
+      final moistureVal = _customInputVal(bill.deductions, 'Moisture');
+
+      final row = <String>[
+        bill.farmer?.profileUrl ?? '',
+        farmerName,
+        "SOYA SEED",
+        bill.vendor?.villageAdd ?? "N/A",
+        date,
+        (bill.farmer?.id != null && bill.farmer!.id!.length > 6)
+            ? bill.farmer!.id!.substring(bill.farmer!.id!.length - 6)
+            : (bill.farmer?.id ?? "N/A"),
+        '${bill.bagCount ?? 'N/A'}',
+        bill.vendor?.grnNumber ?? bill.grnNo ?? "N/A",
+        bill.vendorBillSeq?.toString() ?? bill.billNo ?? bill.grnNo ?? "N/A",
+        "$grossValue $unit",
+        "$bagValue $unit",
+        "$netValue $unit",
+        fmVal,
+        damageVal,
+        moistureVal,
+        "₹${rateVal.toStringAsFixed(2)}",
+        "₹$amount",
+        status,
+        bill.paymentStatus ?? 'PENDING',
+        bill.billLocation ?? "N/A",
+        bill.remark ?? '',
+        bill.id ?? '',
+      ];
+
+      sb.writeln(row.map(_csvCell).join(','));
+    }
+
+    sb.writeln(_buildBillingTotalsCsvRow(controller, bills));
+
+    return sb.toString();
+  }
+
+  String _buildBillingTotalsCsvRow(
+      BillingController controller, List<BillModel> bills) {
+    final unit = bills.isNotEmpty ? bills.first.primaryUnit ?? 'KG' : 'KG';
+    final num gross = controller.totalGrossWeight;
+    final num bag = controller.totalBagWeight;
+    final num net = controller.totalNetWeight;
+
+    final row = <String>[
+      '',
+      'Total',
+      '',
+      '',
+      '',
+      '',
+      '${controller.totalBags.toInt()}',
+      '',
+      '',
+      "${gross.toStringAsFixed(2)} $unit",
+      "${bag.toStringAsFixed(2)} $unit",
+      "${net.toStringAsFixed(2)} $unit",
+      "${controller.avgFm.toStringAsFixed(2)}%",
+      "${controller.avgDamage.toStringAsFixed(2)}%",
+      "${controller.avgMoisture.toStringAsFixed(2)}%",
+      '',
+      "₹${controller.totalAmount.toStringAsFixed(2)}",
+      '',
+      '',
+      '',
+      '',
+      '',
+    ];
+
+    return row.map(_csvCell).join(',');
+  }
+
+  String _formatReportDate(String? dateStr) {
+    if (dateStr == null || dateStr.isEmpty) return ""; 
+    final parsed = DateTime.tryParse(dateStr);
+    if (parsed != null) {
+      return DateFormat('dd-MM-yyyy').format(parsed);
+    }
+    return dateStr;
+  }
+
+  String _csvMeta() {
+    final controller =
+        Provider.of<BillingController>(context, listen: false);
+    final buffer = StringBuffer();
+    if (controller.billStartDate != null) {
+      buffer.write(' from ${DateFormat('dd MMM yyyy').format(controller.billStartDate!)}');
+    }
+    if (controller.billEndDate != null) {
+      buffer.write(' to ${DateFormat('dd MMM yyyy').format(controller.billEndDate!)}');
+    }
+    if (buffer.isEmpty) {
+      buffer.write(' all');
+    }
+    return 'Billing Report$buffer';
+  }
+
   Future<BillPrintFormat?> _showPrintFormatSheet(BuildContext context) {
     return showModalBottomSheet<BillPrintFormat>(
       context: context,
@@ -626,6 +853,7 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                 _buildColumn("Bill Status"),
                 _buildColumn("Payment Status"),
                 _buildColumn("Location"),
+                _buildColumn("Remark(s)"),
                 _buildColumn("Actions"),
               ],
               rows: bills.map((bill) {
@@ -699,6 +927,7 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
                         ),
                       ),
                     ),
+                    DataCell(_buildRemarkCell(bill)),
                     DataCell(
                       PopupMenuButton<String>(
                         icon: Container(
@@ -825,6 +1054,7 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
         _empty(),
         _empty(),
         _empty(),
+        _empty(),
       ],
     );
   }
@@ -933,6 +1163,202 @@ class _BillingReportScreenState extends State<BillingReportScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildRemarkCell(BillModel bill) {
+    final remarkText = bill.remark;
+    final urls = bill.remarkUrls ?? [];
+    final hasRemark = (remarkText?.isNotEmpty ?? false) || urls.isNotEmpty;
+
+    if (!hasRemark) {
+      return SizedBox(
+        width: 140.w,
+        child: Text("No remark", style: _cellStyle()),
+      );
+    }
+
+    return SizedBox(
+      width: 180.w,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          if (remarkText != null && remarkText.isNotEmpty)
+            Padding(
+              padding: EdgeInsets.only(bottom: 4.h),
+              child: Text(
+                remarkText,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: TextStyle(
+                  fontSize: 11.sp,
+                  color: blackColor,
+                  fontWeight: FontWeight.w500,
+                  fontFamily: FontFamily.jost,
+                ),
+              ),
+            ),
+          if (urls.isNotEmpty)
+            SizedBox(
+              height: 48.h,
+              child: ListView.separated(
+                scrollDirection: Axis.horizontal,
+                itemCount: urls.length,
+                separatorBuilder: (_, __) => SizedBox(width: 6.w),
+                itemBuilder: (context, index) {
+                  final url = urls[index];
+                  final fullUrl = _remarkImageUrl(url);
+                  if (_isRemarkImage(url)) {
+                    return GestureDetector(
+                      onTap: () => _showRemarkImage(context, fullUrl),
+                      child: ClipRRect(
+                        borderRadius: BorderRadius.circular(6.r),
+                        child: Container(
+                          width: 44.w,
+                          height: 44.h,
+                          color: greyColor.withOpacity(0.15),
+                          child: Image.network(
+                            fullUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stack) => Center(
+                              child: Icon(Icons.broken_image_outlined,
+                                  color: greyColor, size: 16),
+                            ),
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return Center(
+                                child: SizedBox(
+                                  width: 14,
+                                  height: 14,
+                                  child: CircularProgressIndicator(
+                                    strokeWidth: 2,
+                                    color: appColor,
+                                  ),
+                                ),
+                              );
+                            },
+                          ),
+                        ),
+                      ),
+                    );
+                  }
+                  return GestureDetector(
+                    onTap: () => _openRemarkDoc(url),
+                    child: Container(
+                      width: 44.w,
+                      height: 44.h,
+                      decoration: BoxDecoration(
+                        color: appColor.withOpacity(0.1),
+                        borderRadius: BorderRadius.circular(6.r),
+                      ),
+                      child: Icon(Icons.picture_as_pdf_outlined,
+                          color: appColor, size: 22.sp),
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  String _remarkImageUrl(String url) {
+    if (url.startsWith('http')) return url;
+    final path = url.startsWith('/') ? url : '/$url';
+    return '${ApiConstants.imageBaseUrl}$path';
+  }
+
+  bool _isRemarkImage(String url) {
+    final path = url.split('?').first.toLowerCase();
+    return path.endsWith('.jpg') ||
+        path.endsWith('.jpeg') ||
+        path.endsWith('.png') ||
+        path.endsWith('.bmp') ||
+        path.endsWith('.webp');
+  }
+
+  void _showRemarkImage(BuildContext context, String url) {
+    showDialog( 
+      context: context,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: GestureDetector(
+          onTap: () => Navigator.pop(context),
+          child: Stack(
+            children: [
+              Center(
+                child: Image.network(
+                  url,
+                  fit: BoxFit.contain,
+                  width: double.infinity,
+                  height: double.infinity,
+                  errorBuilder: (context, error, stackTrace) => const Center(
+                    child: Icon(Icons.error_outline,
+                        color: Colors.white, size: 40),
+                  ),
+                  loadingBuilder: (context, child, loadingProgress) {
+                    if (loadingProgress == null) return child;
+                    return const Center(
+                      child: CircularProgressIndicator(color: Colors.white),
+                    );
+                  },
+                ),
+              ),
+              Positioned(
+                top: 16,
+                right: 16,
+                child: GestureDetector(
+                  onTap: () => Navigator.pop(context),
+                  child: Container(
+                    padding: EdgeInsets.all(6.r),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child:
+                        Icon(Icons.close, color: Colors.white, size: 24.sp),
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _openRemarkDoc(String url) async {
+    try {
+      final fullUrl = _remarkImageUrl(url);
+      final res = await http
+          .get(Uri.parse(fullUrl))
+          .timeout(const Duration(seconds: 60));
+      if (res.statusCode != 200 || res.bodyBytes.isEmpty) {
+        if (mounted) {
+          ToastMessage.show(context,
+              message: "Unable to download document", isError: true);
+        }
+        return;
+      }
+      final dir = await getTemporaryDirectory();
+      final file = File(
+          '${dir.path}/remark_${DateTime.now().millisecondsSinceEpoch}.pdf');
+      await file.writeAsBytes(res.bodyBytes);
+      if (!mounted) return;
+      final result = await OpenFile.open(file.path);
+      if (result.type != ResultType.done && mounted) {
+        ToastMessage.show(context,
+            message: "No app found to open this file", isError: true);
+      }
+    } catch (e) {
+      debugPrint("Error opening remark doc: $e");
+      if (mounted) {
+        ToastMessage.show(context,
+            message: "Unable to open document", isError: true);
+      }
+    }
   }
 
   Widget _buildPaymentStatusBadge(BillModel bill) {

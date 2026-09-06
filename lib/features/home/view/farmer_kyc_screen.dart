@@ -94,8 +94,10 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   final _landVillageController = TextEditingController();
   final _landTalukaController = TextEditingController();
   final _landDistrictController = TextEditingController();
+  // Farm Location controllers
   final _otherVillageController = TextEditingController();
   final _otherLandVillageController = TextEditingController();
+  bool _isAddingVillage = false;
   final _otherBankNameController = TextEditingController();
 
   // Bank Details Controllers
@@ -105,13 +107,15 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   final TextEditingController _ifscController = TextEditingController();
   final _holderNameController = TextEditingController();
   final TextEditingController _searchController = TextEditingController();
+  final FocusNode _searchFocusNode = FocusNode();
   final ScrollController _scrollController = ScrollController();
+  double _savedScrollOffset = 0.0;
   final _branchNameController = TextEditingController();
   String? _selectedBankId; // Master bank UUID from /bank-details/
   bool _showAccountNo = false;
   String?
       _farmerBankRecordId; // Farmer's own bank record UUID (from fetched BankData.id)
-  File? _passbookImage;
+  List<File> _passbookImages = [];
 
   // Remote Image URLs for already uploaded documents
   String? _profileImageUrl;
@@ -119,7 +123,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   String? _panImageUrl;
   String? _licenseImageUrl;
   List<String> _landDocumentUrls = [];
-  String? _passbookImageUrl;
+  List<String> _passbookImageUrls = [];
 
   String? _authToken;
   String? _lastFarmerId;
@@ -362,7 +366,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             _confirmAccountNoController.text =
                 detail!.banks!.first.accountNo ?? '';
           }
-          _passbookImageUrl = detail!.banks!.first.passbookImage;
+          _passbookImageUrls = _extractBankPassbookUrls(controller.fetchedBank!.first);
         }
 
         if (controller.fetchedFarmerDetail != null) {
@@ -373,7 +377,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
           '🔍 Resolve fill -> step=${controller.currentStep} '
           'aadhaarUrls=$_aadhaarImageUrls panUrl=$_panImageUrl '
           'licenseUrl=$_licenseImageUrl landUrls=$_landDocumentUrls '
-          'passbookUrl=$_passbookImageUrl profileUrl=$_profileImageUrl');
+          'passbookUrls=$_passbookImageUrls profileUrl=$_profileImageUrl');
     }
   }
 
@@ -432,6 +436,19 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
         _otherLandVillageController.text = land.villageAdd ?? '';
       }
     });
+  }
+
+  List<String> _extractBankPassbookUrls(BankData bank) {
+    final urls = <String>[];
+    if (bank.passbookImages != null) {
+      for (final u in bank.passbookImages!) {
+        if (u.isNotEmpty) urls.add(u);
+      }
+    }
+    if (urls.isEmpty && bank.passbookImage != null && bank.passbookImage!.isNotEmpty) {
+      urls.add(bank.passbookImage!);
+    }
+    return urls;
   }
 
   String _combinedFarmerName() {
@@ -511,6 +528,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     _ifscController.dispose();
     _holderNameController.dispose();
     _searchController.dispose();
+    _searchFocusNode.dispose();
     _scrollController.dispose();
     _branchNameController.dispose();
     _otherVillageController.dispose();
@@ -524,6 +542,12 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
   }
 
   Future<void> _pickImage(String type, {int? index}) async {
+    // Capture the scroll position first: closing the picker restores focus
+    // to the previously-focused text field, which makes Flutter's
+    // Scrollable.ensureVisible jump the form back to the top.
+    final savedScroll = _scrollController.hasClients
+        ? _scrollController.position.pixels
+        : 0.0;
     try {
       final pickedFile =
           await ImagePickerService.pickFile(context, enableCrop: true);
@@ -544,7 +568,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
           } else if (type == 'LAND' || type == 'LAND_712') {
             _landDocuments.add(persistentFile);
           } else if (type == 'PASSBOOK') {
-            _passbookImage = persistentFile;
+            _passbookImages.add(persistentFile);
           } else if (type == 'ADDITIONAL_LAND') {
             if (index != null && index < _additionalLands.length) {
               _additionalLands[index].documents.add(persistentFile);
@@ -552,13 +576,57 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
           }
         });
       }
-    } catch (e) {
+      } catch (e) {
       debugPrint('Error picking image: $e');
       if (mounted) {
         ToastMessage.show(context,
             message: 'Error picking image: $e', isError: true);
       }
+    } finally {
+      // Snap the form back if closing the picker jumped it to the top.
+      _restoreScrollIfUnjumped(savedScroll);
     }
+  }
+
+  /// Remembers the current scroll position just before a dropdown menu opens.
+  /// Closing the menu later restores focus to the previously-focused text
+  /// field, which makes Flutter's Scrollable.ensureVisible jump the form
+  /// back to the top — [restoreScrollAfterDropdown] snaps it back.
+  Future<bool> _rememberScrollBeforeDropdown(_) async {
+    _savedScrollOffset = _scrollController.hasClients
+        ? _scrollController.position.pixels
+        : 0.0;
+    return true;
+  }
+
+  void _restoreScrollAfterDropdown() {
+    _restoreScrollIfUnjumped(_savedScrollOffset);
+  }
+
+  /// Dropdown menus and pickers restore focus to the last-focused text field
+  /// when their route closes, which makes Flutter's Scrollable.ensureVisible
+  /// jump the form back to the top. If the page jumped up from the saved
+  /// position, snap it back after the route settles.
+  void _restoreScrollIfUnjumped(double saved) {
+    if (saved <= 0 || !_scrollController.hasClients) return;
+
+    void tryRestore() {
+      if (!mounted || !_scrollController.hasClients) return;
+      final pos = _scrollController.position;
+      // Only intervene when the page jumped UP (offset shrank a lot relative
+      // to the saved spot) so small manual scrolls are never fought.
+      final jumped = (saved - pos.pixels) > 20;
+      if (!jumped) return;
+      final target = saved.clamp(0.0, pos.maxScrollExtent);
+      if (target > pos.pixels + 1) {
+        _scrollController.jumpTo(target);
+      }
+    }
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      tryRestore();
+      Future.delayed(const Duration(milliseconds: 350), tryRestore);
+    });
   }
 
   Future<File?> _saveFilePermanently(File sourceFile, String prefix) async {
@@ -609,6 +677,15 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       }
 
       bool success;
+      // Persist user-typed custom village via the locations API (best effort,
+      // so the village appears in the merged list next time). Never blocks
+      // farmer creation if the call fails.
+      if (isOtherVillage && villageName.isNotEmpty) {
+        unawaited(locProvider.addCustomVillage(
+          villageName,
+          talukaCode: taluka.code ?? '',
+        ));
+      }
       if (controller.createdFarmerId != null) {
         success = await controller.updateFarmer(
           context: context,
@@ -901,8 +978,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       }
 
       if (!controller.isBankSubmitted &&
-          _passbookImage == null &&
-          _passbookImageUrl == null) {
+          _passbookImages.isEmpty &&
+          _passbookImageUrls.isEmpty) {
         if (mounted) {
           ToastMessage.show(
             context,
@@ -933,7 +1010,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             currentHolderName != (existingBank.holderName ?? '') ||
             currentBranchName != (existingBank.branchName ?? '');
 
-        bool newImageSelected = _passbookImage != null;
+        bool newImageSelected = _passbookImages.isNotEmpty;
 
         bankDetailsChanged = fieldsChanged || newImageSelected;
       }
@@ -963,7 +1040,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             ifsc: _ifscController.text.trim(),
             holderName: _holderNameController.text.trim(),
             branchName: titleCase(_branchNameController.text),
-            passbookImage: _passbookImage,
+            passbookImages: _passbookImages,
+            existingPassbookUrls: _passbookImageUrls,
             isPrimary: true,
           );
         } else {
@@ -976,7 +1054,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             ifsc: _ifscController.text.trim(),
             holderName: _holderNameController.text.trim(),
             branchName: titleCase(_branchNameController.text),
-            passbookImage: _passbookImage!,
+            passbookImages: _passbookImages,
             isPrimary: true,
           );
         }
@@ -999,6 +1077,8 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       onTap: () {
         controller.setSearchType(value);
         _searchController.clear();
+        // Focus so the correct keyboard opens for the new search type.
+        _searchFocusNode.requestFocus();
       },
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -1010,6 +1090,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             onChanged: (val) {
               if (val != null) {
                 controller.setSearchType(val);
+                _searchFocusNode.requestFocus();
               }
             },
           ),
@@ -1040,9 +1121,13 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       child: TextField(
         key: ValueKey(controller.searchType),
         controller: _searchController,
+        focusNode: _searchFocusNode,
         onChanged: (value) => controller.onSuggestionSearchChanged(value),
-        autofocus:
-            true, // Auto-focus when type changes to show correct keyboard
+        // Focus is requested only when the search type changes (see
+        // _buildSearchTypeRadioButton) instead of autofocus, because
+        // autofocus re-grabs focus after dropdowns/file-picker cover the
+        // screen, which scrolls the page back to the top and leaves the
+        // cursor in this field.
         keyboardType: controller.searchType == FarmerSearchType.name
             ? TextInputType.text
             : TextInputType.number,
@@ -1363,14 +1448,14 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
       _panImage = null;
       _licenseImage = null;
       _landDocuments = [];
-      _passbookImage = null;
+      _passbookImages = [];
 
       _profileImageUrl = null;
       _aadhaarImageUrls = [];
       _panImageUrl = null;
       _licenseImageUrl = null;
       _landDocumentUrls = [];
-      _passbookImageUrl = null;
+      _passbookImageUrls = [];
 
       for (final entry in _additionalLands) {
         entry.areaController.removeListener(_onAreaChanged);
@@ -1462,14 +1547,14 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
     _panImage = null;
     _licenseImage = null;
     _landDocuments = [];
-    _passbookImage = null;
+    _passbookImages = [];
 
     _profileImageUrl = null;
     _aadhaarImageUrls = [];
     _panImageUrl = null;
     _licenseImageUrl = null;
     _landDocumentUrls = [];
-    _passbookImageUrl = null;
+    _passbookImageUrls = [];
 
     for (final entry in _additionalLands) {
       entry.areaController.removeListener(_onAreaChanged);
@@ -1495,6 +1580,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             const HeaderWidget(),
             Expanded(
               child: SingleChildScrollView(
+                controller: _scrollController,
                 padding: EdgeInsets.symmetric(horizontal: 16.w, vertical: 10.h),
                 child: Column(
                   children: [
@@ -2111,8 +2197,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                             children: [
                               _buildFieldLabel('District *'),
                               DropdownSearch<LocationModel>(
+                                onBeforePopupOpening: (_) =>
+                                    _rememberScrollBeforeDropdown(_),
                                 popupProps: PopupProps.menu(
                                   showSearchBox: true,
+                                  onDismissed: _restoreScrollAfterDropdown,
                                   searchFieldProps: TextFieldProps(
                                     decoration: InputDecoration(
                                       hintText: "Search District",
@@ -2165,7 +2254,10 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                                       fontFamily: FontFamily.jost,
                                       color: blackColor),
                                 ),
-                                onChanged: locationProvider.selectDistrict,
+                                onChanged: (value) {
+                                  _restoreScrollAfterDropdown();
+                                  locationProvider.selectDistrict(value);
+                                },
                                 selectedItem: locationProvider.selectedDistrict,
                                 validator: (value) =>
                                     value == null ? 'Required' : null,
@@ -2180,8 +2272,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                             children: [
                               _buildFieldLabel('Taluka *'),
                               DropdownSearch<LocationModel>(
+                                onBeforePopupOpening: (_) =>
+                                    _rememberScrollBeforeDropdown(_),
                                 popupProps: PopupProps.menu(
                                   showSearchBox: true,
+                                  onDismissed: _restoreScrollAfterDropdown,
                                   searchFieldProps: TextFieldProps(
                                     decoration: InputDecoration(
                                       hintText: "Search Taluka",
@@ -2236,7 +2331,10 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                                       fontFamily: FontFamily.jost,
                                       color: blackColor),
                                 ),
-                                onChanged: locationProvider.selectTaluka,
+                                onChanged: (value) {
+                                  _restoreScrollAfterDropdown();
+                                  locationProvider.selectTaluka(value);
+                                },
                                 selectedItem: locationProvider.selectedTaluka,
                                 validator: (value) =>
                                     value == null ? 'Required' : null,
@@ -2255,8 +2353,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                             children: [
                               _buildFieldLabel('Village Address *'),
                               DropdownSearch<LocationModel>(
+                                onBeforePopupOpening: (_) =>
+                                    _rememberScrollBeforeDropdown(_),
                                 popupProps: PopupProps.menu(
                                   showSearchBox: true,
+                                  onDismissed: _restoreScrollAfterDropdown,
                                   searchFieldProps: TextFieldProps(
                                     decoration: InputDecoration(
                                       hintText: "Search Village",
@@ -2312,6 +2413,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                                       color: blackColor),
                                 ),
                                 onChanged: (value) {
+                                  _restoreScrollAfterDropdown();
                                   locationProvider.selectVillage(value);
                                   if (value != LocationModel.other) {
                                     _otherVillageController.clear();
@@ -2325,12 +2427,22 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                                   LocationModel.other) ...[
                                 SizedBox(height: 12.h),
                                 _buildFieldLabel('Enter Village Name *'),
-                                _buildTextField(
-                                  controller: _otherVillageController,
-                                  validator: (value) =>
-                                      (value == null || value.isEmpty)
-                                          ? 'Required'
-                                          : null,
+                                Row(
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.start,
+                                  children: [
+                                    Expanded(
+                                      child: _buildTextField(
+                                        controller: _otherVillageController,
+                                        validator: (value) =>
+                                            (value == null || value.isEmpty)
+                                                ? 'Required'
+                                                : null,
+                                      ),
+                                    ),
+                                    SizedBox(width: 8.w),
+                                    _buildAddVillageButton(locationProvider),
+                                  ],
                                 ),
                               ],
                             ],
@@ -2347,6 +2459,88 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildAddVillageButton(LocationProvider locationProvider) {
+    return SizedBox(
+      height: 48.h,
+      child: ElevatedButton(
+        onPressed: _isAddingVillage
+            ? null
+            : () => _addCustomVillage(locationProvider),
+        style: ElevatedButton.styleFrom(
+          backgroundColor: primeryColor,
+          disabledBackgroundColor: primeryColor.withOpacity(0.6),
+          padding: EdgeInsets.symmetric(horizontal: 18.w),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(6.r),
+          ),
+        ),
+        child: _isAddingVillage
+            ? SizedBox(
+                height: 18,
+                width: 18,
+                child: CircularProgressIndicator(
+                  strokeWidth: 2,
+                  color: whiteColor,
+                ),
+              )
+            : Text(
+                'Add',
+                style: TextStyle(
+                  color: whiteColor,
+                  fontSize: 14.sp,
+                  fontFamily: FontFamily.jost,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+      ),
+    );
+  }
+
+  /// "Add" button beside the Other-village text field. Calls the 4th API
+  /// (POST /locations/talukas/{{talukaCode}}/villages) to create or match the
+  /// custom village, then selects it in the dropdown.
+  Future<void> _addCustomVillage(LocationProvider locationProvider) async {
+    final name = _otherVillageController.text.trim();
+    final taluka = locationProvider.selectedTaluka;
+    if (name.isEmpty) {
+      if (mounted) {
+        ToastMessage.show(context,
+            message: 'Please enter village name', isError: true);
+      }
+      return;
+    }
+    if (taluka == null || (taluka.code == null || taluka.code!.isEmpty)) {
+      if (mounted) {
+        ToastMessage.show(context,
+            message: 'Please select Taluka first', isError: true);
+      }
+      return;
+    }
+
+    setState(() => _isAddingVillage = true);
+    final created = await locationProvider.addCustomVillage(
+      name,
+      talukaCode: taluka.code!,
+    );
+    if (!mounted) return;
+    setState(() => _isAddingVillage = false);
+
+    if (created != null) {
+      locationProvider.selectVillage(created);
+      _otherVillageController.clear();
+      if (mounted) {
+        ToastMessage.show(context,
+            message: 'Village added successfully', isError: false);
+      }
+    } else {
+      if (mounted) {
+        ToastMessage.show(context,
+            message: 'Could not add village. Please try again.',
+            isError: true);
+      }
+    }
   }
 
   Widget _buildIdentificationForm() {
@@ -2446,8 +2640,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                               children: [
                                 _buildFieldLabel('District'),
                                 DropdownSearch<LocationModel>(
+                                  onBeforePopupOpening: (_) =>
+                                      _rememberScrollBeforeDropdown(_),
                                   popupProps: PopupProps.menu(
                                     showSearchBox: true,
+                                    onDismissed: _restoreScrollAfterDropdown,
                                     searchFieldProps: TextFieldProps(
                                       decoration: InputDecoration(
                                         hintText: "Search District",
@@ -2485,9 +2682,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                                     ),
                                   ),
                                   onChanged: (value) {
+                                    _restoreScrollAfterDropdown();
                                     lp.selectDistrict(value);
                                     if (value != null) {
-                                      _landDistrictController.text = value.name;
+                                      _landDistrictController.text =
+                                          value.name;
                                     }
                                   },
                                   selectedItem: lp.selectedDistrict,
@@ -2504,8 +2703,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                               children: [
                                 _buildFieldLabel('Taluka'),
                                 DropdownSearch<LocationModel>(
+                                  onBeforePopupOpening: (_) =>
+                                      _rememberScrollBeforeDropdown(_),
                                   popupProps: PopupProps.menu(
                                     showSearchBox: true,
+                                    onDismissed: _restoreScrollAfterDropdown,
                                     searchFieldProps: TextFieldProps(
                                       decoration: InputDecoration(
                                         hintText: "Search Taluka",
@@ -2543,9 +2745,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                                     ),
                                   ),
                                   onChanged: (value) {
+                                    _restoreScrollAfterDropdown();
                                     lp.selectTaluka(value);
                                     if (value != null) {
-                                      _landTalukaController.text = value.name;
+                                      _landTalukaController.text =
+                                          value.name;
                                     }
                                   },
                                   selectedItem: lp.selectedTaluka,
@@ -2561,8 +2765,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                       SizedBox(height: 12.h),
                       _buildFieldLabel('Village'),
                       DropdownSearch<LocationModel>(
+                        onBeforePopupOpening: (_) =>
+                            _rememberScrollBeforeDropdown(_),
                         popupProps: PopupProps.menu(
                           showSearchBox: true,
+                          onDismissed: _restoreScrollAfterDropdown,
                           searchFieldProps: TextFieldProps(
                             decoration: InputDecoration(
                               hintText: "Search Village",
@@ -2595,6 +2802,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                           ),
                         ),
                         onChanged: (value) {
+                          _restoreScrollAfterDropdown();
                           lp.selectVillage(value);
                           if (value != null) {
                             if (value == LocationModel.other) {
@@ -2945,8 +3153,11 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
               children: [
                 Expanded(
                   child: DropdownSearch<BankDetailData>(
+                        onBeforePopupOpening: (_) =>
+                            _rememberScrollBeforeDropdown(_),
                         popupProps: PopupProps.menu(
                           showSearchBox: true,
+                          onDismissed: _restoreScrollAfterDropdown,
                           searchFieldProps: TextFieldProps(
                             decoration: InputDecoration(
                               hintText: "Search Bank",
@@ -2997,6 +3208,7 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
                           ),
                         ),
                         onChanged: (value) {
+                          _restoreScrollAfterDropdown();
                           if (value != null) {
                             setState(() {
                               _selectedBankId = value.id;
@@ -3184,10 +3396,16 @@ class _FarmerKYCScreenState extends State<FarmerKYCScreen> {
             ),
             SizedBox(height: 12.h),
             _buildFieldLabel('Bank Passbook Photo *'),
-            _buildImageUpload(
-              onTap: () => _pickImage('PASSBOOK'),
-              selectedFile: _passbookImage,
-              remoteUrl: _passbookImageUrl,
+            _buildMultiImageUpload(
+              onAdd: () => _pickImage('PASSBOOK'),
+              selectedFiles: _passbookImages,
+              remoteUrls: _passbookImageUrls,
+              onRemoveLocal: (index) {
+                setState(() => _passbookImages.removeAt(index));
+              },
+              onRemoveRemote: (index) {
+                setState(() => _passbookImageUrls.removeAt(index));
+              },
             ),
           ],
         ),

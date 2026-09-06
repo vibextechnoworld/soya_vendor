@@ -23,6 +23,7 @@ import 'package:pdf/pdf.dart';
 import 'package:printing/printing.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:soya_app/core/services/image_picker_service.dart';
+import 'package:soya_app/core/constants/api_constants.dart';
 import 'package:dotted_border/dotted_border.dart';
 
 class BillSummaryScreen extends StatefulWidget {
@@ -119,6 +120,8 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                         ],
                         SizedBox(height: 20.h),
                         _buildWeightDetailsCard(bill, calc),
+                        SizedBox(height: 20.h),
+                        _buildAdditionalDocuments(bill),
                         SizedBox(height: 20.h),
                         _buildRateDetailsCard(bill, calc),
                         //dont show
@@ -833,8 +836,218 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
           textColor: whiteColor,
           isBold: true,
         ),
+        if (bill.weightSlipImage != null && bill.weightSlipImage!.isNotEmpty)
+          _buildWeightSlipImage(bill.weightSlipImage!),
       ],
     );
+  }
+
+  Widget _buildWeightSlipImage(String imageUrl) {
+    final fullUrl = _resolveImageUrl(imageUrl);
+    return Padding(
+      padding: EdgeInsets.only(top: 12.h),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            "Weight Slip Image",
+            style: TextStyle(
+              fontSize: 12.sp,
+              fontWeight: FontWeight.w500,
+              color: blackColor,
+              fontFamily: FontFamily.jost,
+            ),
+          ),
+          SizedBox(height: 8.h),
+          GestureDetector(
+            onTap: () => _showFullScreenImage(fullUrl),
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(8.r),
+              child: Image.network(
+                fullUrl,
+                width: double.infinity,
+                height: 180.h,
+                fit: BoxFit.cover,
+                errorBuilder: (context, error, stackTrace) {
+                  return Container(
+                    height: 180.h,
+                    alignment: Alignment.center,
+                    color: greyColor.withOpacity(0.1),
+                    child: Icon(Icons.broken_image_outlined,
+                        color: greyColor, size: 32.sp),
+                  );
+                },
+                loadingBuilder: (context, child, progress) {
+                  if (progress == null) return child;
+                  return Container(
+                    height: 180.h,
+                    alignment: Alignment.center,
+                    color: greyColor.withOpacity(0.1),
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: primeryColor),
+                  );
+                },
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Displays the additional documents / remark files uploaded with the bill.
+  Widget _buildAdditionalDocuments(BillModel bill) {
+    final urls = bill.remarkUrls ?? [];
+    if (urls.isEmpty) return const SizedBox.shrink();
+
+    return _buildSummarySection(
+      title: "Additional Documents",
+      children: [
+        if (bill.remark != null && bill.remark!.isNotEmpty) ...[
+          _buildInfoRow("Remark", bill.remark!),
+          SizedBox(height: 12.h),
+        ],
+        Padding(
+          padding: EdgeInsets.all(16.w),
+          child: Wrap(
+            spacing: 10.w,
+            runSpacing: 10.h,
+            children: urls.map((url) {
+              final fullUrl = _resolveImageUrl(url);
+              final isImage = _isImageUrl(url);
+              return GestureDetector(
+                onTap: isImage
+                    ? () => _showFullScreenImage(fullUrl)
+                    : () => _openRemarkDocument(fullUrl),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8.r),
+                  child: Container(
+                    width: 100.w,
+                    height: 100.h,
+                    decoration: BoxDecoration(
+                      color: greyColor.withOpacity(0.15),
+                      borderRadius: BorderRadius.circular(8.r),
+                    ),
+                    child: isImage
+                        ? Image.network(
+                            fullUrl,
+                            fit: BoxFit.cover,
+                            errorBuilder: (context, error, stackTrace) => Icon(
+                                Icons.broken_image_outlined,
+                                color: greyColor,
+                                size: 28.sp),
+                            loadingBuilder: (context, child, progress) {
+                              if (progress == null) return child;
+                              return Center(
+                                child: CircularProgressIndicator(
+                                    strokeWidth: 2, color: primeryColor),
+                              );
+                            },
+                          )
+                        : Icon(Icons.picture_as_pdf_outlined,
+                            color: primeryColor, size: 32.sp),
+                  ),
+                ),
+              );
+            }).toList(),
+          ),
+        ),
+      ],
+    );
+  }
+
+  bool _isImageUrl(String url) {
+    final path = url.split('?').first.toLowerCase();
+    return path.endsWith('.jpg') ||
+        path.endsWith('.jpeg') ||
+        path.endsWith('.png') ||
+        path.endsWith('.bmp') ||
+        path.endsWith('.webp');
+  }
+
+  void _openRemarkDocument(String url) {
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(
+          "Document",
+          style: TextStyle(
+            fontFamily: FontFamily.jost,
+            fontSize: 18.sp,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+        content: Text(
+          "Non-image document: $url",
+          style: TextStyle(fontSize: 13.sp, fontFamily: FontFamily.jost),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Close"),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Opens the weight slip image full-screen with pinch/pan zoom support.
+  void _showFullScreenImage(String url) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 5,
+                child: Center(
+                  child: Image.network(
+                    url,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) {
+                      return Icon(Icons.broken_image_outlined,
+                          color: greyColor, size: 48.sp);
+                    },
+                    loadingBuilder: (context, child, progress) {
+                      if (progress == null) return child;
+                      return CircularProgressIndicator(
+                          strokeWidth: 2, color: primeryColor);
+                    },
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 16,
+              left: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: EdgeInsets.all(8.r),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child:
+                      Icon(Icons.close, color: whiteColor, size: 22.sp),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _resolveImageUrl(String url) {
+    if (url.startsWith('http')) return url;
+    final path = url.startsWith('/') ? url : '/$url';
+    return '${ApiConstants.imageBaseUrl}$path';
   }
 
   Widget _buildRateDetailsCard(BillModel bill, CalculationDetails? calc) {
@@ -1003,6 +1216,63 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
     );
   }
 
+  bool _isImageFile(File file) {
+    final ext = file.path.split('.').last.toLowerCase();
+    return ext == 'jpg' ||
+        ext == 'jpeg' ||
+        ext == 'png' ||
+        ext == 'bmp' ||
+        ext == 'webp';
+  }
+
+  Future<void> _showSelectedFilePreview(File file) async {
+    if (!_isImageFile(file)) return;
+    await showDialog(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 5,
+                child: Center(
+                  child: Image.file(
+                    file,
+                    fit: BoxFit.contain,
+                    errorBuilder: (context, error, stackTrace) => Icon(
+                        Icons.broken_image_outlined,
+                        color: greyColor,
+                        size: 48.sp),
+                  ),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 16,
+              right: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: EdgeInsets.all(6.r),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child:
+                      Icon(Icons.close, color: Colors.white, size: 24.sp),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   Future<Map<String, dynamic>?> _showAdditionalDocumentDialog(
     BuildContext context,
     BillingController controller,
@@ -1136,21 +1406,58 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                             final file = selectedFiles[index];
                             final name =
                                 file.path.split('/').last.split('\\').last;
+                            final isImage = _isImageFile(file);
                             return Row(
                               children: [
-                                Icon(Icons.insert_drive_file_outlined,
-                                    color: primeryColor, size: 18.sp),
+                                GestureDetector(
+                                  onTap: () => _showSelectedFilePreview(file),
+                                  child: ClipRRect(
+                                    borderRadius: BorderRadius.circular(4.r),
+                                    child: SizedBox(
+                                      width: 40.w,
+                                      height: 40.h,
+                                      child: isImage
+                                          ? Image.file(
+                                              file,
+                                              fit: BoxFit.cover,
+                                              errorBuilder: (context, error,
+                                                      stackTrace) =>
+                                                  Container(
+                                                color:
+                                                    greyColor.withOpacity(0.1),
+                                                child: Icon(
+                                                    Icons.broken_image_outlined,
+                                                    color: greyColor,
+                                                    size: 18.sp),
+                                              ),
+                                            )
+                                          : Container(
+                                              color:
+                                                  primeryColor.withOpacity(0.1),
+                                              child: Icon(
+                                                  Icons
+                                                      .insert_drive_file_outlined,
+                                                  color: primeryColor,
+                                                  size: 18.sp),
+                                            ),
+                                    ),
+                                  ),
+                                ),
                                 SizedBox(width: 8.w),
                                 Expanded(
-                                  child: Text(
-                                    name,
-                                    style: TextStyle(
-                                      fontSize: 12.sp,
-                                      fontFamily: FontFamily.jost,
-                                      color: blackColor,
+                                  child: GestureDetector(
+                                    onTap: () =>
+                                        _showSelectedFilePreview(file),
+                                    child: Text(
+                                      name,
+                                      style: TextStyle(
+                                        fontSize: 12.sp,
+                                        fontFamily: FontFamily.jost,
+                                        color: blackColor,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
                                     ),
-                                    maxLines: 1,
-                                    overflow: TextOverflow.ellipsis,
                                   ),
                                 ),
                                 IconButton(
@@ -1322,15 +1629,15 @@ class _BillSummaryScreenState extends State<BillSummaryScreen> {
                   );
 
                   // 4. Navigate away after dialog is closed
-                  final wasEditing = controller.editingBillId != null;
                   controller.resetForNewBill(); // Clear billing data only (keep report filters)
                   controller.fetchBills(); // Refresh report list with existing filters
                   botNav.updateFormView(FormView.selection);
-                  nav.pop();
-                  // If we came from Edit Draft, there's an extra BillingScreen on the stack
-                  if (wasEditing && nav.canPop()) {
-                    nav.pop();
-                  }
+                  // Billing & summary are pushed routes; pop all the way back
+                  // to the bottom navigation bar (also handles the extra
+                  // BillingScreen left by "Edit Draft").
+                  nav.popUntil((route) =>
+                      route.settings.name == AppRoutes.bottomNavBar ||
+                      route.isFirst);
                 }
               },
         style: ElevatedButton.styleFrom(

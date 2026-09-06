@@ -102,6 +102,7 @@ class PdfInvoiceService {
   }) async {
     final ttf = await PdfGoogleFonts.notoSansDevanagariBold();
     final ttfBold = await PdfGoogleFonts.notoSansDevanagariBold();
+    final iconFont = await PdfGoogleFonts.materialIcons();
     String? vName;
     String? vMobile;
     String? vLocation;
@@ -131,7 +132,7 @@ class PdfInvoiceService {
         : 'I, ${_titleCase(data.farmerName)}, confirm that the supplied crop belongs to me and the payment details mentioned above are accepted by me.';
     final declImage = await _renderTextToImage(declText);
     final sloganImage = await _renderTextToImage('समृद्ध शेतकरी चळवळ',
-        fontSize: 6.5, color: Colors.green);
+        fontSize: 6.5, color: Colors.black);
     final logoImage =
         (await rootBundle.load('assets/playstore_icon.png')).buffer.asUint8List();
 
@@ -192,7 +193,7 @@ class PdfInvoiceService {
                   _a4CutLine(ttf),
                   _a4TearOffSlip(ttf, ttfBold, data),
                   _a4Rule(),
-                  _a4ReceiptFooter(ttf, ttfBold),
+                  _a4ReceiptFooter(ttf, ttfBold, iconFont),
                   pw.SizedBox(height: 8),
                   pw.Center(child: pw.Image(pw.MemoryImage(sloganImage))),
                 ],
@@ -245,7 +246,7 @@ class PdfInvoiceService {
         'समृद्ध शेतकरी चळवळ',
         fontSize: 6.2,
         maxWidth: 170,
-        color: Colors.green);
+        color: Colors.black);
     final pdf = pw.Document(
       theme: pw.ThemeData.withFont(base: ttf, bold: ttfBold),
     );
@@ -395,7 +396,7 @@ class PdfInvoiceService {
                     _companyName,
                     textAlign: pw.TextAlign.center,
                     style: pw.TextStyle(
-                        font: ttfBold, fontSize: 23, color: PdfColors.orange),
+                        font: ttfBold, fontSize: 23, color: PdfColors.black),
                   ),
                   pw.SizedBox(height: 2),
                   pw.Text(
@@ -456,7 +457,6 @@ class PdfInvoiceService {
           _a4InlineField(ttf, ttfBold, 'Farmer Name',  data.farmerName == null || data.farmerName!.isEmpty
       ? ''
       : _titleCase(data.farmerName),),
-          _a4InlineField(ttf, ttfBold, 'Farmer ID', data.farmerId),
           _a4InlineField(ttf, ttfBold, 'Mobile No.', data.mobile),
           _a4InlineField(ttf, ttfBold, 'Village', data.village),
           _a4InlineField(ttf, ttfBold, 'Taluka', data.taluka),
@@ -484,19 +484,17 @@ class PdfInvoiceService {
               children: [
                 pw.Text("Today's Purchase Rate",
                     style: pw.TextStyle(
-                        font: ttfBold, fontSize: 8.5, color: PdfColors.red)),
+                        font: ttfBold, fontSize: 8.5, color: PdfColors.black)),
                 pw.Text('  :  ',
                     style: pw.TextStyle(
-                        font: ttfBold, fontSize: 8.5, color: PdfColors.red)),
+                        font: ttfBold, fontSize: 8.5, color: PdfColors.black)),
                 pw.Text('Rs. ${data.actualRate} / Qtl',
                     style: pw.TextStyle(
-                        font: ttfBold, fontSize: 8.5, color: PdfColors.red)),
+                        font: ttfBold, fontSize: 8.5, color: PdfColors.black)),
               ],
             ),
           ),
           pw.SizedBox(height: 12),
-          _a4InlineField(ttf, ttfBold, 'Central Sr. No.', data.grnNo,
-              labelWidth: 108),
           _a4InlineField(ttf, ttfBold, 'Purchase Point Sr. No.', 'TBSPL-KP-${data.vendorBillSeq}',
               labelWidth: 108),
           _a4InlineField(ttf, ttfBold, 'Commodity', _commodity,
@@ -518,29 +516,29 @@ class PdfInvoiceService {
           pw.SizedBox(height: 8),
           _a4AmountRow(ttf, ttfBold, 'Gross Weight in KG ',
               _kgFromQtl(data.grossKg),
-              valueColor: PdfColors.green),
+              valueColor: PdfColors.black),
           _a4AmountRow(ttf, ttfBold, 'Bag Weight (Deduction) in KG',
               '${(data.bagDeductionKg.isNotEmpty ? (double.tryParse(data.bagDeductionKg) ?? 0) * 100 : 0).toStringAsFixed(2)}',
-              valueColor: PdfColors.green),
+              valueColor: PdfColors.black),
           // _a4Dash(),
           _a4AmountRow(ttf, ttfBold, 'Net Weight in KG',
               _kgFromQtl(data.netKg),
-              bold: true, valueColor: PdfColors.green),
+              bold: true, valueColor: PdfColors.black),
           // _a4Dash(),
           _a4AmountRow(
               ttf, ttfBold, 'Final Purchase Rate in Rs', '${data.rate}',
-              valueColor: PdfColors.green),
+              valueColor: PdfColors.black),
           // _a4Dash(),
           if (data.advanceAmount.isNotEmpty)
             ...[
               _a4AmountRow(
                   ttf, ttfBold, 'Advance Deduction in Rs', '${data.advanceAmount}',
-                  valueColor: PdfColors.green),
+                  valueColor: PdfColors.black),
               // _a4Dash(),
             ],
           _a4AmountRow(
               ttf, ttfBold, 'PAYABLE AMOUNT in Rs', '${data.payableAmount}',
-              bold: true, fontSize: 9.3, valueColor: PdfColors.green),
+              bold: true, fontSize: 9.3, valueColor: PdfColors.black),
         ],
       ),
     );
@@ -563,7 +561,7 @@ class PdfInvoiceService {
               row.first,
               row.length > 1 ? row[1] : '',
               bold: row.first.toLowerCase().contains('total'),
-              valueColor: PdfColors.red,
+              valueColor: PdfColors.black,
             ),
           ),
         ],
@@ -603,7 +601,7 @@ class PdfInvoiceService {
         children: [
           pw.Text('BANK DETAILS',
               style: pw.TextStyle(
-                  font: ttfBold, fontSize: 9, color: PdfColors.red)),
+                  font: ttfBold, fontSize: 9, color: PdfColors.black)),
           pw.SizedBox(height: 3),
           pw.Row(
             children: [
@@ -613,13 +611,13 @@ class PdfInvoiceService {
                     _a4InlineField(ttf, ttfBold, 'Bank Name',
                         _titleCase(data.bankName),
                         labelWidth: 88,
-                        labelColor: PdfColors.red,
-                        valueColor: PdfColors.red),
+                        labelColor: PdfColors.black,
+                        valueColor: PdfColors.black),
                     _a4InlineField(
                         ttf, ttfBold, 'Account Number', data.accountNo,
                         labelWidth: 88,
-                        labelColor: PdfColors.red,
-                        valueColor: PdfColors.red),
+                        labelColor: PdfColors.black,
+                        valueColor: PdfColors.black),
                   ],
                 ),
               ),
@@ -630,13 +628,13 @@ class PdfInvoiceService {
                     _a4InlineField(
                         ttf, ttfBold, 'Account Holder', _titleCase(data.holderName),
                         labelWidth: 100,
-                        labelColor: PdfColors.red,
-                        valueColor: PdfColors.red),
+                        labelColor: PdfColors.black,
+                        valueColor: PdfColors.black),
                     _a4InlineField(
                         ttf, ttfBold, 'IFSC Code & Branch', data.ifsc,
                         labelWidth: 100,
-                        labelColor: PdfColors.red,
-                        valueColor: PdfColors.red),
+                        labelColor: PdfColors.black,
+                        valueColor: PdfColors.black),
                   ],
                 ),
               ),
@@ -671,7 +669,7 @@ class PdfInvoiceService {
                     labelWidth: 96),
                 _a4InlineField(
                     ttf, ttfBold, 'Total Amount in Rs', '${data.payableAmount}',
-                    labelWidth: 96, valueColor: PdfColors.green),
+                    labelWidth: 96, valueColor: PdfColors.black),
               ],
             ),
           ),
@@ -708,14 +706,16 @@ class PdfInvoiceService {
     );
   }
 
-  static pw.Widget _a4ReceiptFooter(pw.Font ttf, pw.Font ttfBold) {
+  static pw.Widget _a4ReceiptFooter(
+      pw.Font ttf, pw.Font ttfBold, pw.Font iconFont) {
     return pw.Padding(
       padding: const pw.EdgeInsets.fromLTRB(20, 4, 20, 0),
       child: pw.Row(
         crossAxisAlignment: pw.CrossAxisAlignment.start,
         children: [
-          _signPlaceholder(ttfBold),
-          pw.SizedBox(width: 12),
+          pw.Icon(pw.IconData(0xe55f), font: iconFont,
+              size: 16, color: PdfColors.black),
+          pw.SizedBox(width: 8),
           pw.Expanded(
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -731,8 +731,9 @@ class PdfInvoiceService {
           ),
           pw.Container(width: .6, height: 45, color: PdfColors.black),
           pw.SizedBox(width: 26),
-          _signPlaceholder(ttfBold),
-          pw.SizedBox(width: 12),
+          pw.Icon(pw.IconData(0xe0cd), font: iconFont,
+              size: 18, color: PdfColors.black),
+          pw.SizedBox(width: 8),
           pw.Expanded(
             child: pw.Column(
               crossAxisAlignment: pw.CrossAxisAlignment.start,
@@ -744,22 +745,6 @@ class PdfInvoiceService {
               ],
             ),
           ),
-        ],
-      ),
-    );
-  }
-
-  static pw.Widget _signPlaceholder(pw.Font ttfBold) {
-    return pw.Container(
-      width: 52,
-      height: 30,
-      child: pw.Column(
-        mainAxisAlignment: pw.MainAxisAlignment.end,
-        children: [
-          pw.Container(width: 52, height: .7, color: PdfColors.black),
-          pw.SizedBox(height: 2),
-          pw.Text('( Sign )',
-              style: pw.TextStyle(font: ttfBold, fontSize: 6.5)),
         ],
       ),
     );
@@ -789,7 +774,7 @@ class PdfInvoiceService {
           pw.Text(':',
               style: pw.TextStyle(
                   font: ttfBold, fontSize: fontSize, color: labelColor)),
-          pw.SizedBox(width: 9),
+          pw.SizedBox(width: 9),  
           pw.Expanded(
             child: pw.Container(
               height: 12,
@@ -1299,7 +1284,7 @@ class PdfInvoiceService {
                   text:
                       'Rs. ${_numberToWords(data.payableRounded)} ONLY',
                   style: pw.TextStyle(
-                      font: ttfBold, fontSize: 7.7, color: PdfColors.green),
+                      font: ttfBold, fontSize: 7.7, color: PdfColors.black),
                 ),
               ],
             ),

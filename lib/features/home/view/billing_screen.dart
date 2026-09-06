@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:provider/provider.dart';
+import 'package:soya_app/core/services/image_picker_service.dart';
 import 'package:soya_app/core/widgets/header_widget.dart';
 import 'package:soya_app/core/widgets/name_initials_avatar.dart';
 import 'package:soya_app/features/home/controller/billing_controller.dart';
@@ -11,7 +13,6 @@ import 'package:soya_app/features/home/model/farmer_model.dart';
 import 'package:soya_app/util/colors.dart';
 import 'package:soya_app/util/font_family.dart';
 import 'package:soya_app/util/string_utils.dart';
-import 'package:soya_app/features/bottom_navigation_bar/controller/bottom_navbar_controller.dart';
 import 'package:soya_app/features/home/model/save_bill_request.dart';
 import 'package:soya_app/features/home/model/deduction_master_model.dart';
 import 'package:soya_app/features/home/model/goni_type_model.dart';
@@ -28,6 +29,7 @@ class BillingScreen extends StatefulWidget {
 
 class _BillingScreenState extends State<BillingScreen> {
   late BillingController _billingController;
+  File? _weightSlipImage;
   final TextEditingController _farmerNameController = TextEditingController();
   final TextEditingController _netWeightController = TextEditingController();
   final TextEditingController _numBagsController = TextEditingController();
@@ -39,9 +41,11 @@ class _BillingScreenState extends State<BillingScreen> {
       TextEditingController();
   final TextEditingController _returnNotesController = TextEditingController();
   final Map<String, TextEditingController> _qualityControllers = {};
+  final Map<String, FocusNode> _qualityFocusNodes = {};
 
   final FocusNode _farmerFocusNode = FocusNode();
   int _currentStep = 0;
+  int _selectedBagMultiplier = 1;
   Timer? _qualityDebounce;
 
   @override
@@ -63,6 +67,7 @@ class _BillingScreenState extends State<BillingScreen> {
         _farmerNameController.clear();
         _netWeightController.clear();
         _numBagsController.clear();
+        _selectedBagMultiplier = 1;
         _rateController.clear();
         _vehicleNumberController.clear();
         _driverNameController.clear();
@@ -93,6 +98,7 @@ class _BillingScreenState extends State<BillingScreen> {
                 .toString();
         _vehicleNumberController.text = bill.vehicleNumber ?? '';
         _driverNameController.text = bill.driverName ?? '';
+        _selectedBagMultiplier = 1;
         _billingController.restoreEditingState(bill);
 
         // Sync _actualQualityValues so deduction calculation uses restored values
@@ -155,6 +161,9 @@ class _BillingScreenState extends State<BillingScreen> {
     for (var controller in _qualityControllers.values) {
       controller.dispose();
     }
+    for (var node in _qualityFocusNodes.values) {
+      node.dispose();
+    }
     _billingController.resetForNewBill();
     _farmerFocusNode.dispose();
     _qualityDebounce?.cancel();
@@ -163,8 +172,14 @@ class _BillingScreenState extends State<BillingScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      backgroundColor: lightGreenColor,
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) {
+        if (didPop) return;
+        _handleBackPressed();
+      },
+      child: Scaffold(
+        backgroundColor: lightGreenColor,
       body: SafeArea(
         child: Column(
           children: [
@@ -184,16 +199,7 @@ class _BillingScreenState extends State<BillingScreen> {
                             Align(
                               alignment: Alignment.centerLeft,
                               child: IconButton(
-                                onPressed: () {
-                                  if (_currentStep > 0) {
-                                    setState(() => _currentStep--);
-                                  } else {
-                                    Provider.of<BottomNavBarController>(
-                                      context,
-                                      listen: false,
-                                    ).updateFormView(FormView.selection);
-                                  }
-                                },
+                                onPressed: _handleBackPressed,
                                 icon: Icon(
                                   Icons.arrow_back_ios,
                                   color: blackColor,
@@ -760,6 +766,8 @@ class _BillingScreenState extends State<BillingScreen> {
                             ],
                           ),
                           SizedBox(height: 16.h),
+                          _buildWeightSlipUpload(),
+                          SizedBox(height: 16.h),
                           _buildFieldLabel('Vehicle Number'),
                           _buildTextField(
                             controller: _vehicleNumberController,
@@ -848,6 +856,10 @@ class _BillingScreenState extends State<BillingScreen> {
                               onChanged: (val) {
                                 setState(() {}); // Trigger rebuild
                               }),
+                          if (controller.selectedGoniType?.isTracked == true) ...[
+                            SizedBox(height: 16.h),
+                            _buildBagMultiplierSelector(),
+                          ],
                           SizedBox(height: 16.h),
                           Align(
                             alignment: Alignment.centerRight,
@@ -860,9 +872,11 @@ class _BillingScreenState extends State<BillingScreen> {
                                           0;
                                   if (count > 0) {
                                     controller.addBag(
-                                        controller.selectedGoniType!, count);
+                                        controller.selectedGoniType!, count,
+                                        bagMultiplier: _selectedBagMultiplier);
                                     _numBagsController.clear();
                                     controller.selectGoniType(null);
+                                    setState(() => _selectedBagMultiplier = 1);
                                   }
                                 } else {
                                   ToastMessage.show(context,
@@ -918,7 +932,9 @@ class _BillingScreenState extends State<BillingScreen> {
                                                   fontWeight: FontWeight.bold,
                                                   fontFamily: FontFamily.jost,
                                                   color: blackColor)),
-                                          Text("${bag.bagCount} Bags",
+                                          Text(bag.bagMultiplier > 1
+                                              ? "${bag.bagCount} Bags × ${bag.bagMultiplier == 2 ? 'Double' : 'Triple'}"
+                                              : "${bag.bagCount} Bags",
                                               style: TextStyle(
                                                   fontSize: 12.sp,
                                                   color: greyColor,
@@ -931,14 +947,14 @@ class _BillingScreenState extends State<BillingScreen> {
                                           CrossAxisAlignment.end,
                                       children: [
                                         Text(
-                                            "${((bag.goniType.weightPerBag ?? 0) * bag.bagCount).toStringAsFixed(2)} Kg",
+                                            "${((bag.goniType.weightPerBag ?? 0) * bag.bagCount * bag.bagMultiplier).toStringAsFixed(2)} Kg",
                                             style: TextStyle(
                                                 fontSize: 14.sp,
                                                 fontWeight: FontWeight.bold,
                                                 color: primeryColor,
                                                 fontFamily: FontFamily.jost)),
                                         Text(
-                                            "(${(((bag.goniType.weightPerBag ?? 0) * bag.bagCount) / 100).toStringAsFixed(4)} QTL)",
+                                            "(${(((bag.goniType.weightPerBag ?? 0) * bag.bagCount * bag.bagMultiplier) / 100).toStringAsFixed(4)} QTL)",
                                             style: TextStyle(
                                                 fontSize: 10.sp,
                                                 color: primeryColor,
@@ -974,8 +990,8 @@ class _BillingScreenState extends State<BillingScreen> {
                                           fontWeight: FontWeight.w500,
                                           fontFamily: FontFamily.jost,
                                           color: blackColor)),
-                                  Text(
-                                      "${controller.selectedBags.fold(0, (sum, b) => sum + b.bagCount)} Bags",
+Text(
+                                        "${controller.selectedBags.fold(0, (sum, b) => sum + (b.bagCount * b.bagMultiplier))} Bags",
                                       style: TextStyle(
                                           fontSize: 16.sp,
                                           fontWeight: FontWeight.bold,
@@ -1010,14 +1026,14 @@ class _BillingScreenState extends State<BillingScreen> {
                                       mainAxisSize: MainAxisSize.min,
                                       children: [
                                         Text(
-                                            "${controller.selectedBags.fold(0.0, (sum, b) => sum.toDouble() + ((b.goniType.weightPerBag ?? 0) * b.bagCount)).toStringAsFixed(2)} Kg",
+                                            "${controller.selectedBags.fold(0.0, (sum, b) => sum.toDouble() + ((b.goniType.weightPerBag ?? 0) * b.bagCount * b.bagMultiplier)).toStringAsFixed(2)} Kg",
                                             style: TextStyle(
                                                 fontSize: 16.sp,
                                                 fontWeight: FontWeight.bold,
                                                 fontFamily: FontFamily.jost,
                                                 color: primeryColor)),
                                         Text(
-                                            "(${controller.selectedBags.fold(0.0, (sum, b) => sum.toDouble() + (((b.goniType.weightPerBag ?? 0) * b.bagCount) / 100)).toStringAsFixed(4)} QTL)",
+                                            "(${controller.selectedBags.fold(0.0, (sum, b) => sum.toDouble() + (((b.goniType.weightPerBag ?? 0) * b.bagCount * b.bagMultiplier) / 100)).toStringAsFixed(4)} QTL)",
                                             style: TextStyle(
                                                 fontSize: 12.sp,
                                                 fontWeight: FontWeight.w600,
@@ -1131,7 +1147,20 @@ class _BillingScreenState extends State<BillingScreen> {
           ],
         ),
       ),
+      ),
     );
+  }
+
+  /// Shared back handling for both the in-app back arrow and the phone back
+  /// button: step back through the wizard, then pop the billing route.
+  void _handleBackPressed() {
+    if (_currentStep > 0) {
+      setState(() => _currentStep--);
+    } else {
+      if (Navigator.of(context).canPop()) {
+        Navigator.of(context).pop();
+      }
+    }
   }
 
   Widget _buildFieldLabel(String label) {
@@ -1147,6 +1176,148 @@ class _BillingScreenState extends State<BillingScreen> {
         ),
       ),
     );
+  }
+
+  Widget _buildWeightSlipUpload() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFieldLabel('Weight Slip'),
+        if (_weightSlipImage == null)
+          InkWell(
+            onTap: _pickWeightSlipImage,
+            borderRadius: BorderRadius.circular(6.r),
+            child: Container(
+              height: 48.h,
+              padding: EdgeInsets.symmetric(horizontal: 12.w),
+              decoration: BoxDecoration(
+                color: whiteColor,
+                borderRadius: BorderRadius.circular(6.r),
+                border: Border.all(color: Colors.grey.withOpacity(0.4)),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.camera_alt, color: greyColor, size: 20.sp),
+                  SizedBox(width: 10.w),
+                  Expanded(
+                    child: Text(
+                      'Upload Image',
+                      style: TextStyle(
+                        fontSize: 12.sp,
+                        fontFamily: FontFamily.jost,
+                        color: greyColor,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          )
+        else
+          Stack(
+            children: [
+              InkWell(
+                onTap: _showFullScreenWeightSlip,
+                borderRadius: BorderRadius.circular(8.r),
+                child: ClipRRect(
+                  borderRadius: BorderRadius.circular(8.r),
+                  child: Image.file(
+                    _weightSlipImage!,
+                    width: double.infinity,
+                    height: 100.h,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+              ),
+              Positioned(
+                top: 4,
+                right: 4,
+                child: GestureDetector(
+                  onTap: () => setState(() => _weightSlipImage = null),
+                  child: Container(
+                    padding: EdgeInsets.all(4),
+                    decoration: BoxDecoration(
+                      color: Colors.black54,
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(Icons.close, color: whiteColor, size: 16),
+                  ),
+                ),
+              ),
+              Positioned(
+                bottom: 4,
+                left: 8,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'Tap to view',
+                    style: TextStyle(
+                      fontSize: 9.sp,
+                      color: whiteColor,
+                      fontFamily: FontFamily.jost,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
+      ],
+    );
+  }
+
+  /// Shows the selected weight slip image full-screen with pinch/pan zoom.
+  void _showFullScreenWeightSlip() {
+    final image = _weightSlipImage;
+    if (image == null) return;
+    showDialog(
+      context: context,
+      barrierColor: Colors.black,
+      builder: (_) => Dialog(
+        backgroundColor: Colors.black,
+        insetPadding: EdgeInsets.zero,
+        child: Stack(
+          children: [
+            Positioned.fill(
+              child: InteractiveViewer(
+                minScale: 1,
+                maxScale: 5,
+                child: Center(
+                  child: Image.file(image, fit: BoxFit.contain),
+                ),
+              ),
+            ),
+            Positioned(
+              top: 16,
+              left: 16,
+              child: GestureDetector(
+                onTap: () => Navigator.pop(context),
+                child: Container(
+                  padding: EdgeInsets.all(8.r),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(Icons.close, color: whiteColor, size: 22.sp),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _pickWeightSlipImage() async {
+    final file = await ImagePickerService.pickFile(context,
+        enableCrop: true, allowedSources: [FileSource.camera]);
+    if (file != null) {
+      setState(() => _weightSlipImage = file);
+    }
   }
 
   Widget _buildTextField({
@@ -1222,6 +1393,56 @@ class _BillingScreenState extends State<BillingScreen> {
   //   );
   // }
 
+  Widget _buildBagMultiplierSelector() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildFieldLabel('Bag Type (Single / Double / Triple)'),
+        Row(
+          children: [
+            for (final m in const [1, 2, 3]) ...[
+              if (m > 1) SizedBox(width: 10.w),
+              Expanded(
+                child: ChoiceChip(
+                  label: Padding(
+                    padding: EdgeInsets.symmetric(vertical: 4.h),
+                    child: Text(
+                      m == 1
+                          ? 'Single'
+                          : m == 2
+                              ? 'Double'
+                              : 'Triple',
+                      style: TextStyle(
+                          fontSize: 13.sp, fontFamily: FontFamily.jost),
+                    ),
+                  ),
+                  selected: _selectedBagMultiplier == m,
+                  selectedColor: primeryColor,
+                  backgroundColor: Colors.grey.shade100,
+                  labelStyle: TextStyle(
+                    color: _selectedBagMultiplier == m
+                        ? whiteColor
+                        : blackColor,
+                    fontWeight: FontWeight.w600,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8.r),
+                    side: BorderSide(
+                      color: primeryColor.withOpacity(
+                          _selectedBagMultiplier == m ? 1 : 0.2),
+                    ),
+                  ),
+                  onSelected: (_) =>
+                      setState(() => _selectedBagMultiplier = m),
+                ),
+              ),
+            ],
+          ],
+        ),
+      ],
+    );
+  }
+
   Widget _buildGoniTypeDropdown(BillingController controller) {
     return Container(
       height: 48.h,
@@ -1246,8 +1467,12 @@ class _BillingScreenState extends State<BillingScreen> {
                       style: TextStyle(
                           fontSize: 14.sp, fontFamily: FontFamily.jost))))
               .toList(),
-          onChanged: (value) =>
-              value != null ? controller.selectGoniType(value) : null,
+          onChanged: (value) {
+            if (value != null) {
+              controller.selectGoniType(value);
+              setState(() => _selectedBagMultiplier = 1);
+            }
+          },
         ),
       ),
     );
@@ -1600,10 +1825,18 @@ class _BillingScreenState extends State<BillingScreen> {
         driverName: _driverNameController.text,
       );
 
-      final success =
-          await controller.createDraftBill(context: context, request: request);
+      final success = await controller.createDraftBill(
+          context: context,
+          request: request,
+          weightSlipImage: _weightSlipImage);
       if (success) setState(() => _currentStep = 1);
     } else if (_currentStep == 1) {
+      if (controller.selectedBags.isEmpty) {
+        ToastMessage.show(context,
+            message: 'Please add at least one bag', isError: true);
+        return;
+      }
+
       final success = await controller.applyDraftGoniDeduction(
         context: context,
       );
@@ -1887,43 +2120,58 @@ class _BillingScreenState extends State<BillingScreen> {
           // Rows
           // Dynamic Rows based on Deduction Master Variables
           if (master.variables != null) ...[
-            ...master.variables!.map((variable) {
-              final code = variable.code!;
-              final label = _getDisplayLabel(code, variable.label);
+            ...(() {
+              final vars = master.variables!;
+              final codes = vars.map((v) => v.code!).toList();
 
-              // Ensure we have a controller for this variable
-              if (!_qualityControllers.containsKey(code)) {
-                _qualityControllers[code] = TextEditingController();
-                // Pre-fill from restored deduction values
-                final restored = controller.deductionVariableValues[code] ??
-                    controller.deductionVariableValues[variable.label];
-                if (restored != null && restored > 0) {
-                  _qualityControllers[code]!.text = restored.toStringAsFixed(2);
-                  controller.updateQualityValue(code, restored);
+              final items = <Widget>[];
+              for (var i = 0; i < vars.length; i++) {
+                final variable = vars[i];
+                final code = variable.code!;
+                final label = _getDisplayLabel(code, variable.label);
+
+                // Ensure we have a controller for this variable
+                if (!_qualityControllers.containsKey(code)) {
+                  _qualityControllers[code] = TextEditingController();
+                  // Pre-fill from restored deduction values
+                  final restored = controller.deductionVariableValues[code] ??
+                      controller.deductionVariableValues[variable.label];
+                  if (restored != null && restored > 0) {
+                    _qualityControllers[code]!.text = restored.toStringAsFixed(2);
+                    controller.updateQualityValue(code, restored);
+                  }
                 }
-              }
+                _qualityFocusNodes.putIfAbsent(code, () => FocusNode());
 
-              final rowController = _qualityControllers[code]!;
-              final allowed =
-                  controller.allowedValueByCode(code, master: master);
-              final actual = double.tryParse(rowController.text) ?? 0.0;
-              final deductionVal =
-                  _calculateDeductionLocal(actual, allowed, variable.unitHint);
+                final rowController = _qualityControllers[code]!;
+                final allowed =
+                    controller.allowedValueByCode(code, master: master);
+                final actual = double.tryParse(rowController.text) ?? 0.0;
+                final deductionVal =
+                    _calculateDeductionLocal(actual, allowed, variable.unitHint);
+                final nextCode =
+                    (i + 1 < codes.length) ? codes[i + 1] : null;
 
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  _buildQualityRow(
-                    label: label,
-                    allowed: allowed.toStringAsFixed(2),
-                    controller: rowController,
-                    deductionVal: deductionVal,
-                    onChanged: (val) {
-                      controller.updateQualityValue(
-                          code, double.tryParse(val) ?? 0.0);
-                      _onQualityInputChanged(controller, code);
-                    },
-                  ),
+                items.add(Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _buildQualityRow(
+                      label: label,
+                      allowed: allowed.toStringAsFixed(2),
+                      controller: rowController,
+                      focusNode: _qualityFocusNodes[code]!,
+                      deductionVal: deductionVal,
+                      isLast: i == vars.length - 1,
+                      onChanged: (val) {
+                        controller.updateQualityValue(
+                            code, double.tryParse(val) ?? 0.0);
+                        _onQualityInputChanged(controller, code);
+                        if (_isCompleteQualityValue(val) &&
+                            nextCode != null) {
+                          _qualityFocusNodes[nextCode]?.requestFocus();
+                        }
+                      },
+                    ),
                   if (variable.unitHint != null &&
                       variable.unitHint!.isNotEmpty)
                     Padding(
@@ -1936,8 +2184,10 @@ class _BillingScreenState extends State<BillingScreen> {
                     ),
                   const Divider(height: 1),
                 ],
-              );
-            }),
+              ));
+              }
+              return items;
+            }()),
             _buildTotalDeductionRow(controller, master),
           ],
         ],
@@ -2013,10 +2263,20 @@ class _BillingScreenState extends State<BillingScreen> {
     });
   }
 
+  bool _isCompleteQualityValue(String val) {
+    if (!val.contains('.') || val.isEmpty) return false;
+    final decimalPlaces = val.length - val.indexOf('.') - 1;
+    if (decimalPlaces != 2) return false;
+    final whole = val.split('.').first;
+    if (whole.isEmpty || int.tryParse(whole) == null) return false;
+    return true;
+  }
+
   Widget _buildQualityRow({
     required String label,
     required String allowed,
     required TextEditingController controller,
+    FocusNode? focusNode,
     required double deductionVal,
     required Function(String) onChanged,
     bool isLast = false,
@@ -2049,6 +2309,7 @@ class _BillingScreenState extends State<BillingScreen> {
               ),
               child: TextField(
                 controller: controller,
+                focusNode: focusNode,
                 onChanged: onChanged,
                 textAlign: TextAlign.center,
                 textAlignVertical: TextAlignVertical.center,

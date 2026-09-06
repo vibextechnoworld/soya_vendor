@@ -74,13 +74,17 @@ class ImagePickerService {
   /// Handles keyboard unfocusing and permission checks.
   /// When [enableCrop] is true, the picked image opens in a cropper that
   /// supports rotating and cropping before being returned.
+  /// When [allowedSources] is provided, only those source options are shown
+  /// in the selection dialog (and skipped entirely if just one is allowed).
   static Future<File?> pickFile(BuildContext context,
-      {bool enableCrop = false}) async {
+      {bool enableCrop = false, List<FileSource>? allowedSources}) async {
     // 1. Unfocus keyboard immediately to prevent UI lag
     FocusScope.of(context).unfocus();
 
     // 2. Show source selection dialog
-    final source = await _showImageSourceDialog(context);
+    final source = (allowedSources != null && allowedSources.length == 1)
+        ? allowedSources.first
+        : await _showImageSourceDialog(context, allowedSources: allowedSources);
     if (source == null) return null;
 
     // 3. Add a small delay to allow the bottom sheet to close and UI thread to settle
@@ -117,7 +121,11 @@ class ImagePickerService {
       if (image != null) {
         final File pickedFile = File(image.path);
         if (enableCrop) {
-          final rotatedFile = await _rotateAndZoom(context, pickedFile);
+          // Downscale before rotate/crop: pure-Dart decode + copyRotate
+          // allocate full RGBA buffers per copy, so very large camera images
+          // can trigger native out-of-memory crashes.
+          final boundedFile = await _boundedImage(pickedFile);
+          final rotatedFile = await _rotateAndZoom(context, boundedFile);
           if (rotatedFile != null) {
             return await compressForUpload(rotatedFile);
           }
@@ -133,6 +141,38 @@ class ImagePickerService {
       }
     }
     return null;
+  }
+
+  /// Downscales very large images (e.g., 48MP camera shots) to a bounded
+  /// dimension before rotate/crop. Prevents native OOM crashes that happen
+  /// when the pure-Dart image package decodes and copies full-resolution
+  /// RGBA buffers. Returns the original file if already small or on any
+  /// failure (fail-safe).
+  static Future<File> _boundedImage(File file,
+      {int maxDimension = 2500}) async {
+    try {
+      if (!file.existsSync()) return file;
+      final bytes = await file.readAsBytes();
+      final decoded = img.decodeImage(bytes);
+      if (decoded == null) return file;
+      final largest =
+          (decoded.width > decoded.height) ? decoded.width : decoded.height;
+      if (largest <= maxDimension) return file;
+
+      final scale = largest / maxDimension;
+      final resized = img.copyResize(decoded,
+          width: (decoded.width / scale).round(),
+          height: (decoded.height / scale).round());
+      final dir = file.parent;
+      final outFile = File(
+          '${dir.path}/bnd_${DateTime.now().millisecondsSinceEpoch}.jpg');
+      await outFile.writeAsBytes(img.encodeJpg(resized, quality: 90),
+          flush: true);
+      return outFile;
+    } catch (e) {
+      debugPrint('Image bounding failed, using original: $e');
+      return file;
+    }
   }
 
   /// Opens a full-screen viewer that lets the user ZOOM (pinch/pan) and
@@ -259,8 +299,13 @@ class ImagePickerService {
     return true;
   }
 
-  static Future<FileSource?> _showImageSourceDialog(
-      BuildContext context) async {
+  static Future<FileSource?> _showImageSourceDialog(BuildContext context,
+      {List<FileSource>? allowedSources}) async {
+    final List<FileSource> sources = allowedSources ?? [
+      FileSource.camera,
+      FileSource.gallery,
+      FileSource.document,
+    ];
     return await showModalBottomSheet<FileSource>(
       context: context,
       backgroundColor: Colors.transparent,
@@ -296,24 +341,27 @@ class ImagePickerService {
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
-                _buildSourceOption(
-                  context: context,
-                  icon: Icons.camera_alt_rounded,
-                  label: 'Camera',
-                  onTap: () => Navigator.pop(context, FileSource.camera),
-                ),
-                _buildSourceOption(
-                  context: context,
-                  icon: Icons.photo_library_rounded,
-                  label: 'Gallery',
-                  onTap: () => Navigator.pop(context, FileSource.gallery),
-                ),
-                _buildSourceOption(
-                  context: context,
-                  icon: Icons.file_present_rounded,
-                  label: 'Document',
-                  onTap: () => Navigator.pop(context, FileSource.document),
-                ),
+                if (sources.contains(FileSource.camera))
+                  _buildSourceOption(
+                    context: context,
+                    icon: Icons.camera_alt_rounded,
+                    label: 'Camera',
+                    onTap: () => Navigator.pop(context, FileSource.camera),
+                  ),
+                if (sources.contains(FileSource.gallery))
+                  _buildSourceOption(
+                    context: context,
+                    icon: Icons.photo_library_rounded,
+                    label: 'Gallery',
+                    onTap: () => Navigator.pop(context, FileSource.gallery),
+                  ),
+                if (sources.contains(FileSource.document))
+                  _buildSourceOption(
+                    context: context,
+                    icon: Icons.file_present_rounded,
+                    label: 'Document',
+                    onTap: () => Navigator.pop(context, FileSource.document),
+                  ),
               ],
             ),
             SizedBox(height: 30.h),
@@ -372,6 +420,7 @@ class _RotateZoomViewer extends StatefulWidget {
 class _RotateZoomViewerState extends State<_RotateZoomViewer> {
   int _rotations = 0;
   bool _saving = false;
+  bool _closing = false;
 
   @override
   Widget build(BuildContext context) {
@@ -400,7 +449,7 @@ class _RotateZoomViewerState extends State<_RotateZoomViewer> {
             top: 16,
             left: 16,
             child: GestureDetector(
-              onTap: () => Navigator.pop(context),
+              onTap: () => _dismiss(null),
               child: Container(
                 padding: EdgeInsets.all(8.r),
                 decoration: BoxDecoration(
@@ -459,9 +508,11 @@ class _RotateZoomViewerState extends State<_RotateZoomViewer> {
                         padding: EdgeInsets.symmetric(
                             horizontal: 32.w, vertical: 12.h),
                       ),
-                      onPressed: _rotations == 0
-                          ? () => Navigator.pop(context, widget.sourceFile)
-                          : _applyRotation,
+                      onPressed: _saving
+                          ? null
+                          : (_rotations == 0
+                              ? () => _dismiss(widget.sourceFile)
+                              : _applyRotation),
                       child: Text(
                         'DONE',
                         style: TextStyle(
@@ -479,13 +530,23 @@ class _RotateZoomViewerState extends State<_RotateZoomViewer> {
     );
   }
 
+  /// Pops the viewer exactly once with the given result (or null to cancel).
+  /// Guards against double-tap / double-pop on any completion path.
+  void _dismiss(File? result) {
+    if (_closing || !mounted) return;
+    _closing = true;
+    _saving = true;
+    Navigator.pop(context, result);
+  }
+
   Future<void> _applyRotation() async {
+    if (_closing) return;
     setState(() => _saving = true);
     try {
       final bytes = await widget.sourceFile.readAsBytes();
       final decoded = img.decodeImage(bytes);
       if (decoded == null) {
-        if (mounted) Navigator.pop(context, widget.sourceFile);
+        _dismiss(widget.sourceFile);
         return;
       }
       var rotated = decoded;
@@ -497,10 +558,10 @@ class _RotateZoomViewerState extends State<_RotateZoomViewer> {
           '${dir.path}/rot_${DateTime.now().millisecondsSinceEpoch}.jpg');
       await outFile.writeAsBytes(img.encodeJpg(rotated, quality: 90),
           flush: true);
-      if (mounted) Navigator.pop(context, outFile);
+      _dismiss(outFile);
     } catch (e) {
       debugPrint('Rotation failed: $e');
-      if (mounted) Navigator.pop(context, widget.sourceFile);
+      _dismiss(widget.sourceFile);
     }
   }
 
@@ -512,7 +573,7 @@ class _RotateZoomViewerState extends State<_RotateZoomViewer> {
     try {
       // 1. Ensure the temp file is in the current rotation orientation.
       File orientedFile = widget.sourceFile;
-      if (_rotations != 0) {
+      if (_rotations != 0 && !_closing) {
         final bytes = await widget.sourceFile.readAsBytes();
         final decoded = img.decodeImage(bytes);
         if (decoded != null) {
@@ -545,22 +606,23 @@ class _RotateZoomViewerState extends State<_RotateZoomViewer> {
             cropGridColor: Colors.grey,
             cropFrameStrokeWidth: 2,
             showCropGrid: true,
-            lockAspectRatio: true,
+            lockAspectRatio: false,
             hideBottomControls: false,
             initAspectRatio: CropAspectRatioPreset.original,
             cropStyle: CropStyle.rectangle,
           ),
           IOSUiSettings(
             title: 'Crop Image',
-            aspectRatioLockEnabled: true,
-            aspectRatioPickerButtonHidden: true,
+            aspectRatioLockEnabled: false,
+            aspectRatioPickerButtonHidden: false,
+            resetAspectRatioEnabled: true,
           ),
         ],
       );
 
-      if (!mounted) return;
+      if (!mounted || _closing) return;
       if (cropped != null) {
-        Navigator.pop(context, File(cropped.path));
+        _dismiss(File(cropped.path));
       } else {
         // User cancelled the cropper; go back to the rotate/zoom viewer.
         setState(() => _saving = false);

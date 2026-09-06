@@ -164,6 +164,8 @@ class ApiConstants {
 
   //7. Deductions & Goni Types (Admin Management)
   static const String getDeductionMasters = '$baseUrl/admin/deductions'; //get
+  static const String getVendorDeductions =
+      '$baseUrl/vendor/deductions'; //get
   static const String getGoniTypes = '$baseUrl/admin/goni-types'; //get
 
   //8. todays rate
@@ -181,4 +183,13 @@ class ApiConstants {
   static const String getFarmerAdvanceBalance =
       '$baseUrl/admin/farmers/{{farmerId}}/advance-balance'; //get
   static const String disclaimer = '$baseUrl/disclaimer';
+
+  // 11. Locations API (District/Taluka/Village)
+  static const String getDistricts = '$baseUrl/locations/districts'; //get
+  static const String getTalukas =
+      '$baseUrl/locations/districts/{{districtCode}}/talukas'; //get
+  static const String getVillages =
+      '$baseUrl/locations/talukas/{{talukaCode}}/villages'; //get
+  static const String addCustomVillage =
+      '$baseUrl/locations/talukas/{{talukaCode}}/villages'; //post
 }

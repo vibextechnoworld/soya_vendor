@@ -925,6 +925,12 @@ class FarmerKycController with ChangeNotifier {
     return 'image/jpeg';
   }
 
+  String _resolveRemoteUrl(String url) {
+    if (url.startsWith('http')) return url;
+    final path = url.startsWith('/') ? url : '/$url';
+    return '${ApiConstants.imageBaseUrl}$path';
+  }
+
   /// Upload/Update Farmer Document
   Future<bool> uploadFarmerDocument({
     required BuildContext context,
@@ -1155,7 +1161,7 @@ class FarmerKycController with ChangeNotifier {
     required String ifsc,
     required String holderName,
     String? branchName,
-    required File passbookImage,
+    List<File> passbookImages = const [],
     bool isPrimary = true,
   }) async {
     _setLoading(true);
@@ -1179,12 +1185,14 @@ class FarmerKycController with ChangeNotifier {
       debugPrint('🏦 addFarmerBank fields: $fields');
 
       final List<http.MultipartFile> files = [];
-      if (await passbookImage.exists()) {
-        files.add(await http.MultipartFile.fromPath(
-          'document',
-          passbookImage.path,
-          contentType: MediaType.parse(_getMimeType(passbookImage.path)),
-        ));
+      for (final passbookImage in passbookImages) {
+        if (await passbookImage.exists()) {
+          files.add(await http.MultipartFile.fromPath(
+            'document',
+            passbookImage.path,
+            contentType: MediaType.parse(_getMimeType(passbookImage.path)),
+          ));
+        }
       }
 
       final response = await _apiService.multipartRequest(
@@ -1239,7 +1247,8 @@ class FarmerKycController with ChangeNotifier {
     required String ifsc,
     required String holderName,
     String? branchName,
-    File? passbookImage,
+    List<File> passbookImages = const [],
+    List<String> existingPassbookUrls = const [],
     bool isPrimary = true,
   }) async {
     _setLoading(true);
@@ -1267,12 +1276,32 @@ class FarmerKycController with ChangeNotifier {
       debugPrint('🏦 updateFarmerBank fields: $fields');
 
       final List<http.MultipartFile> files = [];
-      if (passbookImage != null && await passbookImage.exists()) {
-        files.add(await http.MultipartFile.fromPath(
-          'document',
-          passbookImage.path,
-          contentType: MediaType.parse(_getMimeType(passbookImage.path)),
-        ));
+      // Re-upload existing (retained) remote passbook images so the full set
+      // is preserved when the backend replaces the bank documentUrls.
+      for (final remoteUrl in existingPassbookUrls) {
+        try {
+          final uri = Uri.parse(_resolveRemoteUrl(remoteUrl));
+          final res = await http.get(uri).timeout(const Duration(seconds: 30));
+          if (res.statusCode != 200 || res.bodyBytes.isEmpty) continue;
+          final name = 'retained_${DateTime.now().millisecondsSinceEpoch}_${existingPassbookUrls.indexOf(remoteUrl)}.jpg';
+          files.add(http.MultipartFile.fromBytes(
+            'document',
+            res.bodyBytes,
+            filename: name,
+            contentType: MediaType.parse(_getMimeType(name)),
+          ));
+        } catch (e) {
+          debugPrint('⚠️ Failed to re-upload existing passbook image: $e');
+        }
+      }
+      for (final passbookImage in passbookImages) {
+        if (await passbookImage.exists()) {
+          files.add(await http.MultipartFile.fromPath(
+            'document',
+            passbookImage.path,
+            contentType: MediaType.parse(_getMimeType(passbookImage.path)),
+          ));
+        }
       }
 
       final response = await _apiService.multipartRequest(

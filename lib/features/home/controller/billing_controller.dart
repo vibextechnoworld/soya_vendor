@@ -155,8 +155,9 @@ class BillingController extends ChangeNotifier {
   List<SelectedBag> _selectedBags = [];
   List<SelectedBag> get selectedBags => _selectedBags;
 
-  void addBag(GoniType type, int count) {
-    _selectedBags.add(SelectedBag(goniType: type, bagCount: count));
+  void addBag(GoniType type, int count, {int bagMultiplier = 1}) {
+    _selectedBags.add(SelectedBag(
+        goniType: type, bagCount: count, bagMultiplier: bagMultiplier));
     notifyListeners();
   }
 
@@ -273,6 +274,9 @@ class BillingController extends ChangeNotifier {
 
   List<BillModel> _bills = [];
   List<BillModel> get bills => _bills;
+
+  List<Map<String, dynamic>> _rawBills = [];
+  List<Map<String, dynamic>> get rawBills => _rawBills;
 
   int _currentPage = 1;
   int get currentPage => _currentPage;
@@ -452,9 +456,11 @@ class BillingController extends ChangeNotifier {
   Future<void> fetchDeductionMasters() async {
     _setLoading(true);
     try {
-      final response = await _apiService.get(ApiConstants.getDeductionMasters);
+      final url = ApiConstants.getVendorDeductions;
+      final response = await _apiService.get(url);
       final responseData = jsonDecode(response.body);
-      if (responseData['success'] == true) {
+
+      if (responseData['success'] == true && responseData['data'] is List) {
         _deductionMasters = (responseData['data'] as List)
             .map((e) => DeductionMaster.fromJson(e))
             .toList();
@@ -476,6 +482,9 @@ class BillingController extends ChangeNotifier {
           // Remap token-keyed deduction values to code-keyed for editing
           _remapDeductionVariableValues();
         }
+      } else {
+        debugPrint(
+            'Vendor deduction masters request failed for: $url -> $responseData');
       }
     } catch (e) {
       debugPrint('Error fetching deduction masters: $e');
@@ -791,6 +800,7 @@ class BillingController extends ChangeNotifier {
   Future<bool> createDraftBill({
     required BuildContext context,
     required SaveBillRequest request,
+    File? weightSlipImage,
   }) async {
     _setLoading(true);
     try {
@@ -817,10 +827,32 @@ class BillingController extends ChangeNotifier {
         billLocation: locationName,
       );
 
-      final response = await _apiService.post(
-        ApiConstants.createBillDraft,
-        body: updatedRequest.toJson(),
-      );
+      final http.Response response;
+      if (weightSlipImage != null) {
+        final fields = updatedRequest.toJson()
+            .map((k, v) => MapEntry(k, v?.toString() ?? ''));
+        final extension =
+            weightSlipImage.path.split('.').last.toLowerCase();
+        final String mimeType =
+            (extension == 'png') ? 'image/png' : 'image/jpeg';
+        final files = <http.MultipartFile>[
+          await http.MultipartFile.fromPath(
+            'weightSlipImage',
+            weightSlipImage.path,
+            contentType: MediaType.parse(mimeType),
+          ),
+        ];
+        response = await _apiService.multipartRequest(
+          ApiConstants.createBillDraft,
+          fields: fields,
+          files: files,
+        );
+      } else {
+        response = await _apiService.post(
+          ApiConstants.createBillDraft,
+          body: updatedRequest.toJson(),
+        );
+      }
 
       final result = ApiHelper.handleResponse(
         response,
@@ -1009,6 +1041,7 @@ class BillingController extends ChangeNotifier {
         return {
           'goniTypeId': bag.goniType.id,
           'bagCount': bag.bagCount,
+          'bagMultiplier': bag.bagMultiplier,
         };
       }).toList();
 
@@ -1334,6 +1367,7 @@ class BillingController extends ChangeNotifier {
       final billListModel = BillListModel.fromJson(responseData);
       if (billListModel.success == true) {
         _bills = billListModel.data ?? [];
+        _extractRawBills(responseData);
         _currentPage = billListModel.currentPage ?? page;
         _totalItems = billListModel.totalItems ?? _bills.length;
         _totalPages = billListModel.totalPages ??
@@ -1413,6 +1447,26 @@ class BillingController extends ChangeNotifier {
       debugPrint('Error fetching bills: $e');
     } finally {
       _setLoading(false);
+    }
+  }
+
+  void _extractRawBills(Map<String, dynamic> responseData) {
+    try {
+      final data = responseData['data'];
+      List<dynamic>? billsRaw;
+      if (data is Map && data['bills'] is List) {
+        billsRaw = data['bills'] as List;
+      } else if (data is List) {
+        billsRaw = data;
+      } else if (data is Map && data['data'] is List) {
+        billsRaw = data['data'] as List;
+      }
+      _rawBills = (billsRaw ?? [])
+          .whereType<Map<String, dynamic>>()
+          .toList();
+    } catch (e) {
+      debugPrint('Error extracting raw bills: $e');
+      _rawBills = [];
     }
   }
 
@@ -1701,7 +1755,9 @@ class BillingController extends ChangeNotifier {
       _selectedBags = bill.gonis!.map((goni) {
         final type = goni.goniType ?? _selectedGoniType ??
             GoniType(id: goni.goniTypeId, name: 'Bag', weightPerBag: 0);
-        return SelectedBag(goniType: type, bagCount: goni.bagCount ?? 0);
+        return SelectedBag(goniType: type,
+            bagCount: goni.bagCount ?? 0,
+            bagMultiplier: goni.bagMultiplier ?? 1);
       }).toList();
     }
 
@@ -1791,6 +1847,11 @@ class BillingController extends ChangeNotifier {
 class SelectedBag {
   final GoniType goniType;
   final int bagCount;
+  final int bagMultiplier;
 
-  SelectedBag({required this.goniType, required this.bagCount});
+  SelectedBag({
+    required this.goniType,
+    required this.bagCount,
+    this.bagMultiplier = 1,
+  });
 }

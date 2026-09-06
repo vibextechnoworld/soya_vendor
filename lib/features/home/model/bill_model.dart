@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'farmer_model.dart';
 import 'goni_type_model.dart';
 
@@ -210,6 +212,9 @@ class BillModel {
   final PaymentModelDetail? payment;
   final String? billLocation;
   final CalculationDetails? calculationDetails;
+  final String? remark;
+  final List<String>? remarkUrls;
+  final String? weightSlipImage;
 
   bool get isOverdue {
     if (paymentStatus != null && paymentStatus!.toUpperCase() == 'PAID') {
@@ -266,6 +271,9 @@ class BillModel {
     this.payment,
     this.billLocation,
     this.calculationDetails,
+    this.remark,
+    this.remarkUrls,
+    this.weightSlipImage,
   });
 
   factory BillModel.fromJson(Map<String, dynamic> json) {
@@ -324,10 +332,41 @@ class BillModel {
           : null,
       billLocation: json['billLocation'] as String?,
 
+      remark: json['remark'] as String?,
+      remarkUrls: _parseRemarkUrls(json['remarkUrl']),
+      weightSlipImage: json['weightSlipImage'] as String?,
+
       calculationDetails: json['calculationDetails'] != null
           ? CalculationDetails.fromJson(json['calculationDetails'])
           : null,
     );
+  }
+
+  static List<String>? _parseRemarkUrls(dynamic value) {
+    if (value == null) return null;
+    try {
+      if (value is List) {
+        return value
+            .whereType<String>()
+            .where((u) => u.isNotEmpty)
+            .toList();
+      }
+      if (value is String) {
+        final trimmed = value.trim();
+        if (trimmed.isEmpty) return null;
+        final parsed = jsonDecode(trimmed);
+        if (parsed is List) {
+          return parsed
+              .whereType<String>()
+              .where((u) => u.isNotEmpty)
+              .toList();
+        }
+        return [trimmed];
+      }
+    } catch (_) {
+      return [value.toString()];
+    }
+    return null;
   }
 
   Map<String, dynamic> toJson() {
@@ -370,6 +409,7 @@ class BillModel {
       'payment': payment?.toJson(),
       'billLocation': billLocation,
       'calculationDetails': calculationDetails?.toJson(),
+      'weightSlipImage': weightSlipImage,
     };
   }
 }
@@ -379,6 +419,7 @@ class BillGoni {
   final String? billId;
   final String? goniTypeId;
   final int? bagCount;
+  final int? bagMultiplier;
   final num? weight;
   final String? createdAt;
   final GoniType? goniType;
@@ -388,6 +429,7 @@ class BillGoni {
     this.billId,
     this.goniTypeId,
     this.bagCount,
+    this.bagMultiplier,
     this.weight,
     this.createdAt,
     this.goniType,
@@ -399,6 +441,7 @@ class BillGoni {
       billId: json['billId'] as String?,
       goniTypeId: json['goniTypeId'] as String?,
       bagCount: json['bagCount'] as int?,
+      bagMultiplier: json['bagMultiplier'] as int?,
       weight: json['weight'] as num?,
       createdAt: json['createdAt'] as String?,
       goniType:
@@ -412,6 +455,7 @@ class BillGoni {
       'billId': billId,
       'goniTypeId': goniTypeId,
       'bagCount': bagCount,
+      'bagMultiplier': bagMultiplier,
       'weight': weight,
       'createdAt': createdAt,
       'goniType': goniType?.toJson(),

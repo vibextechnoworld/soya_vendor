@@ -58,7 +58,6 @@ class _StockTransferScreenState extends State<StockTransferScreen>
   List<Thappi> _selectedThappis = [];
 
   final List<Map<String, String>> _transferTypes = [
-    {'label': 'Vendor → Vendor', 'value': 'VENDOR_TO_VENDOR'},
     {'label': 'Vendor → Plant', 'value': 'VENDOR_TO_PLANT'},
     {'label': 'Vendor → Godown', 'value': 'VENDOR_TO_GODOWN'},
     {'label': 'Godown → Plant', 'value': 'GODOWN_TO_PLANT'},
@@ -579,7 +578,6 @@ class _StockTransferScreenState extends State<StockTransferScreen>
   }
 
   void _showCreateThappiDialog(StockController controller) {
-    final TextEditingController weightCtrl = TextEditingController();
     final TextEditingController moistureCtrl = TextEditingController();
     final TextEditingController fmCtrl = TextEditingController();
     final TextEditingController damageCtrl = TextEditingController();
@@ -610,12 +608,6 @@ class _StockTransferScreenState extends State<StockTransferScreen>
                     mainAxisSize: MainAxisSize.min,
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _buildFieldLabel('Weight (QTL)'),
-                      _buildTextField(
-                        controller: weightCtrl,
-                        keyboardType: TextInputType.number,
-                      ),
-                      SizedBox(height: 12.h),
                       /*
                       Row(
                         children: [
@@ -827,11 +819,6 @@ class _StockTransferScreenState extends State<StockTransferScreen>
                   onPressed: isCreating
                       ? null
                       : () async {
-                          if (weightCtrl.text.isEmpty) {
-                            ToastMessage.show(context,
-                                message: 'Please fill weight', isError: true);
-                            return;
-                          }
                           if (bagBreakdown.isEmpty) {
                             ToastMessage.show(context,
                                 message: 'Please add at least one bag type',
@@ -843,10 +830,23 @@ class _StockTransferScreenState extends State<StockTransferScreen>
                             isCreating = true;
                           });
 
+                          final double weightQtl = bagBreakdown.fold(
+                                0.0,
+                                (sum, b) =>
+                                    sum +
+                                    ((b['bagCount'] as int) *
+                                        (controller.goniTypes
+                                                .firstWhere((g) =>
+                                                    g.id == b['goniTypeId'])
+                                                .weightPerBag ??
+                                            0.0)),
+                              ) /
+                              100.0;
+
                           final success = await controller.createThappi(
                             context: context,
                             locationId: _selectedSourceLocationId!,
-                            weightQtl: double.tryParse(weightCtrl.text) ?? 0.0,
+                            weightQtl: weightQtl,
                             moisture: moistureCtrl.text.isNotEmpty
                                 ? double.tryParse(moistureCtrl.text)
                                 : null,

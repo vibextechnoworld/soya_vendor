@@ -89,7 +89,7 @@ class HeaderWidget extends StatelessWidget {
                       navProvider.updateFormView(FormView.farmerKYC);
                       break;
                     case 'billing':
-                      navProvider.updateFormView(FormView.billing);
+                      Navigator.pushNamed(context, AppRoutes.billing);
                       break;
                     case 'transfer':
                       navProvider.updateFormView(FormView.stockTransfer);

@@ -10,15 +10,14 @@ class SplashController extends ChangeNotifier {
     await Future.delayed(const Duration(seconds: 2)); //splash delay
 
     // User logged in → check profile
-
     final SharedPreferences sp = await SharedPreferences.getInstance();
     final String? token = sp.getString('token');
-    final bool isRememberMe = sp.getBool('isRememberMe') ?? false;
 
-    final bool isProfileCompleted = await _isProfileCompleted(token, isRememberMe);
+    final bool isProfileCompleted = await _isProfileCompleted(token);
 
-    // if profile is completed and remember me is checked, navigate to home
-    if (isProfileCompleted && isRememberMe) {
+    // if profile is completed, navigate to home. The session persists until
+    // explicit logout, so token presence alone is enough.
+    if (isProfileCompleted) {
       Navigator.pushReplacementNamed(context, AppRoutes.bottomNavBar);
     } else {
       Navigator.pushReplacementNamed(context, AppRoutes.login);
@@ -26,13 +25,10 @@ class SplashController extends ChangeNotifier {
   }
 
   // Mock profile completion check
-  Future<bool> _isProfileCompleted(String? token, bool isRememberMe) async {
+  Future<bool> _isProfileCompleted(String? token) async {
     await Future.delayed(const Duration(milliseconds: 500));
-    // Profile is considered "session active" if token exists and user asked to be remembered
-    if (token == null || !isRememberMe) {
-      return false;
-    } else {
-      return true;
-    }
+    // Profile is considered "session active" as long as a token exists.
+    // Closing and reopening the app keeps the user logged in until logout.
+    return token != null && token.isNotEmpty;
   }
 }

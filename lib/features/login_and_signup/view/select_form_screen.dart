@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:soya_app/core/widgets/header_widget.dart';
 import 'package:soya_app/features/bottom_navigation_bar/controller/bottom_navbar_controller.dart';
 import 'package:soya_app/features/home/controller/billing_controller.dart';
+import 'package:soya_app/routes/app_routes.dart';
 import 'package:soya_app/util/colors.dart';
 import 'package:soya_app/util/font_family.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -78,7 +79,8 @@ class _SelectFormScreenState extends State<SelectFormScreen> {
                                   title: 'Billing',
                                   isPrimary: true,
                                   onTap: () {
-                                    controller.updateFormView(FormView.billing);
+                                    Navigator.pushNamed(
+                                        context, AppRoutes.billing);
                                   },
                                   isSmall: true,
                                 ),

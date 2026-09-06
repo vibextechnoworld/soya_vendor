@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 import 'dart:async';
+import 'package:dio/dio.dart' as dio;
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:connectivity_plus/connectivity_plus.dart';
@@ -260,4 +261,86 @@ class ApiService {
       return response;
     }, timeout: effectiveTimeout);
   }
+
+  /// POST request using Dio FormData (multipart/form-data).
+  /// Sends normal fields as form fields and files as MultipartFile parts,
+  /// preserving the Authorization Bearer token.
+  Future<http.Response> postFormData(
+    String url, {
+    Map<String, dynamic>? fields,
+    List<ApiFormFile>? files,
+    bool includeAuth = true,
+  }) async {
+    return await _handleRequest(() async {
+      final dioInstance = dio.Dio(
+        dio.BaseOptions(
+          connectTimeout: const Duration(seconds: 30),
+          receiveTimeout: const Duration(seconds: 180),
+          validateStatus: (_) => true,
+        ),
+      );
+
+      final Map<String, String> headers = {
+        'Content-Type': 'multipart/form-data',
+      };
+      if (includeAuth) {
+        final token = await getToken();
+        if (token != null && token.isNotEmpty) {
+          headers['Authorization'] = 'Bearer $token';
+        }
+      }
+
+      final formData = dio.FormData();
+      if (fields != null) {
+        fields.forEach((key, value) {
+          formData.fields.add(MapEntry(key, value?.toString() ?? ''));
+        });
+      }
+      if (files != null) {
+        for (final formFile in files) {
+          if (await File(formFile.path).exists()) {
+            formData.files.add(MapEntry(
+              formFile.field,
+              await dio.MultipartFile.fromFile(
+                formFile.path,
+                filename: formFile.filename,
+              ),
+            ));
+          }
+        }
+      }
+
+      print('🌐 DIO FORMDATA POST: $url');
+      print('🌐 Headers: $headers');
+      print('🌐 FormData Fields: ${formData.fields}');
+      print('🌐 FormData Files: ${formData.files.map((e) => e.key).toList()}');
+
+      final response = await dioInstance.post(
+        url,
+        data: formData,
+        options: dio.Options(headers: headers),
+      );
+      final dynamic responseData = response.data;
+      final String bodyString = responseData is String
+          ? responseData
+          : (responseData == null
+              ? ''
+              : jsonEncode(responseData));
+      print('🌐 DIO FORMDATA Response [${response.statusCode}]: $responseData');
+      return http.Response(bodyString, response.statusCode ?? 0);
+    });
+  }
+}
+
+/// Describes a file part to attach to a Dio FormData request.
+class ApiFormFile {
+  final String field;
+  final String path;
+  final String? filename;
+
+  const ApiFormFile({
+    required this.field,
+    required this.path,
+    this.filename,
+  });
 }
